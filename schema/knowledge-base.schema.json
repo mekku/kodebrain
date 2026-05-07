@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kb-builder/schema/knowledge-base.schema.json",
+  "title": "KnowledgeBase",
+  "description": "The top-level graph container for a single project's knowledge map. Stored as docs/brain/projects/<name>/graph/knowledge-base.json, or split into nodes.json + edges.json.",
+  "type": "object",
+  "required": ["project", "version", "generatedAt", "nodes", "edges"],
+  "additionalProperties": false,
+  "properties": {
+    "project": {
+      "type": "string",
+      "description": "Project slug. Matches the directory name under docs/brain/projects/."
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+$",
+      "description": "Schema version of this knowledge base format."
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of last full generation."
+    },
+    "generatedBy": {
+      "type": "string",
+      "description": "Agent or tool that last generated this file."
+    },
+    "nodes": {
+      "type": "array",
+      "items": { "$ref": "node.schema.json" }
+    },
+    "edges": {
+      "type": "array",
+      "items": { "$ref": "edge.schema.json" }
+    },
+    "fileIndex": {
+      "type": "object",
+      "description": "Reverse index: source file path → list of node IDs that reference that file. Used for efficient change detection.",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    },
+    "stats": {
+      "type": "object",
+      "description": "Summary statistics for quick inspection.",
+      "additionalProperties": false,
+      "properties": {
+        "totalNodes": { "type": "number" },
+        "totalEdges": { "type": "number" },
+        "nodesByType": {
+          "type": "object",
+          "additionalProperties": { "type": "number" }
+        },
+        "nodesByStatus": {
+          "type": "object",
+          "additionalProperties": { "type": "number" }
+        },
+        "nodesByConfidence": {
+          "type": "object",
+          "additionalProperties": { "type": "number" }
+        },
+        "unmappedFiles": {
+          "type": "number",
+          "description": "Count of source files not referenced by any node."
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "project": "admin-platform",
+      "version": "0.1",
+      "generatedAt": "2026-05-07T10:30:00Z",
+      "generatedBy": "knowledge_builder",
+      "nodes": [],
+      "edges": [],
+      "fileIndex": {},
+      "stats": {
+        "totalNodes": 0,
+        "totalEdges": 0,
+        "nodesByType": {},
+        "nodesByStatus": {},
+        "nodesByConfidence": {},
+        "unmappedFiles": 0
+      }
+    }
+  ]
+}

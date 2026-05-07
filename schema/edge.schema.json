@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kb-builder/schema/edge.schema.json",
+  "title": "KnowledgeEdge",
+  "description": "A directed relationship between two knowledge nodes.",
+  "type": "object",
+  "required": ["from", "to", "type", "confidence"],
+  "additionalProperties": false,
+  "properties": {
+    "from": {
+      "type": "string",
+      "description": "Source node ID. Must match a node.id in nodes.json."
+    },
+    "to": {
+      "type": "string",
+      "description": "Target node ID. Must match a node.id in nodes.json."
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "contains",
+        "implements",
+        "uses",
+        "depends_on",
+        "calls",
+        "reads_from",
+        "writes_to",
+        "invalidates",
+        "exposes",
+        "renders",
+        "part_of_flow",
+        "replaces",
+        "replaced_by",
+        "related_to",
+        "risky_for",
+        "supported_by"
+      ],
+      "description": "The semantic type of the relationship. See taxonomy.md for precise meanings."
+    },
+    "confidence": {
+      "type": "string",
+      "enum": [
+        "verified",
+        "source_supported",
+        "inferred",
+        "ambiguous",
+        "needs_human_review"
+      ]
+    },
+    "evidence": {
+      "type": "array",
+      "description": "Source evidence supporting this edge. Required when confidence is source_supported or verified.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "file": {
+            "type": "string",
+            "description": "Source file path relative to project root."
+          },
+          "symbol": {
+            "type": "string",
+            "description": "Function, class, or constant name."
+          },
+          "route": {
+            "type": "string",
+            "description": "HTTP method + path, e.g. 'POST /api/orders'."
+          },
+          "note": {
+            "type": "string",
+            "description": "Human-readable explanation of what this evidence shows."
+          }
+        }
+      }
+    },
+    "label": {
+      "type": "string",
+      "maxLength": 80,
+      "description": "Optional short label for graph visualization."
+    },
+    "createdBy": {
+      "type": "string",
+      "enum": ["human", "knowledge_builder", "knowledge_architect", "knowledge_reviewer"],
+      "description": "Who created this edge."
+    },
+    "lastUpdated": {
+      "type": "string",
+      "format": "date"
+    }
+  },
+  "examples": [
+    {
+      "from": "auth/login-capability",
+      "to": "auth/login-flow",
+      "type": "part_of_flow",
+      "confidence": "source_supported",
+      "evidence": [
+        {
+          "file": "src/api/auth/login.ts",
+          "symbol": "loginHandler",
+          "note": "Handler directly calls AuthService.validateCredentials and AuthService.createSession in sequence"
+        }
+      ],
+      "createdBy": "knowledge_builder",
+      "lastUpdated": "2026-05-07"
+    },
+    {
+      "from": "auth/login-flow",
+      "to": "auth/session-cache",
+      "type": "writes_to",
+      "confidence": "source_supported",
+      "evidence": [
+        {
+          "file": "src/services/AuthService.ts",
+          "symbol": "AuthService.createSession",
+          "note": "createSession calls SessionCache.set() after successful validation"
+        }
+      ],
+      "createdBy": "knowledge_builder",
+      "lastUpdated": "2026-05-07"
+    }
+  ]
+}

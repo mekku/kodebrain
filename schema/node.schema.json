@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kb-builder/schema/node.schema.json",
+  "title": "KnowledgeNode",
+  "description": "A single unit of knowledge in the Kode Brain system.",
+  "type": "object",
+  "required": ["id", "type", "name", "summary", "status", "confidence", "sourceFiles", "lastUpdated"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*(/[a-z][a-z0-9-]*)*$",
+      "description": "Stable, URL-safe identifier. Format: domain/slug or domain/sub/slug. Never change after first use — edges reference this."
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "project",
+        "domain",
+        "capability",
+        "concept",
+        "flow",
+        "layer",
+        "engine",
+        "adapter",
+        "data_model",
+        "api",
+        "ui",
+        "runtime_behavior",
+        "state",
+        "decision",
+        "caveat",
+        "legacy_area",
+        "migration_state"
+      ]
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "description": "Human-readable name. Capabilities should be verb phrases."
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500,
+      "description": "One- or two-sentence explanation of what this is."
+    },
+    "project": {
+      "type": "string",
+      "description": "Project slug this node belongs to."
+    },
+    "domain": {
+      "type": "string",
+      "description": "Domain slug this node belongs to. Empty for project-level nodes."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "legacy",
+        "deprecated",
+        "partially_migrated",
+        "unused",
+        "experimental",
+        "unknown",
+        "needs_review"
+      ]
+    },
+    "confidence": {
+      "type": "string",
+      "enum": [
+        "verified",
+        "source_supported",
+        "inferred",
+        "ambiguous",
+        "stale",
+        "needs_human_review"
+      ]
+    },
+    "sourceFiles": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Source file paths (relative to project root) that support this node."
+    },
+    "sourceSymbols": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Specific exported symbols (functions, classes, constants) that support this node."
+    },
+    "pagePath": {
+      "type": "string",
+      "description": "Relative path to the Markdown knowledge page for this node, within docs/brain/."
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Optional free-form tags for search and filtering."
+    },
+    "lastUpdated": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO 8601 date when this node was last updated by any agent or human."
+    },
+    "lastReviewed": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO 8601 date when a human last reviewed and confirmed this node."
+    },
+    "createdBy": {
+      "type": "string",
+      "enum": ["human", "knowledge_builder", "knowledge_architect", "knowledge_reviewer"],
+      "description": "Who created this node."
+    }
+  },
+  "examples": [
+    {
+      "id": "auth/login-flow",
+      "type": "flow",
+      "name": "User login flow",
+      "summary": "The runtime path from a login POST request through credential validation, session creation, and response.",
+      "project": "admin-platform",
+      "domain": "auth",
+      "status": "active",
+      "confidence": "source_supported",
+      "sourceFiles": ["src/api/auth/login.ts", "src/services/AuthService.ts", "src/repositories/UserRepository.ts"],
+      "sourceSymbols": ["loginHandler", "AuthService.validateCredentials", "AuthService.createSession"],
+      "pagePath": "projects/admin-platform/domains/auth/flows/login.md",
+      "lastUpdated": "2026-05-07",
+      "createdBy": "knowledge_builder"
+    }
+  ]
+}
