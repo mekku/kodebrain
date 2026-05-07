@@ -1,12 +1,14 @@
 """
 Write/remove Kode Brain agent instruction blocks in platform config files.
 
-Each platform gets a tagged block:
+Two install modes:
+  project-level  kodebrain install .        writes to project root config files
+  user-level     kodebrain install          writes to global user config dirs
+
+Each block is tagged for idempotent update and clean removal:
   <!-- kodebrain:start -->
   ...instructions...
   <!-- kodebrain:end -->
-
-The block is idempotent — install twice, update safely. Uninstall removes it cleanly.
 """
 
 from __future__ import annotations
@@ -21,42 +23,58 @@ _BLOCK_RE = re.compile(
 )
 
 # ---------------------------------------------------------------------------
-# Platform definitions
+# Platform definitions — project level
 # ---------------------------------------------------------------------------
 
-PLATFORMS = {
+PROJECT_PLATFORMS = {
     "claude": {
         "file": "CLAUDE.md",
         "label": "Claude Code",
-        "create_if_missing": True,
     },
     "cursor": {
         "file": ".cursor/rules/kodebrain.mdc",
         "label": "Cursor",
-        "create_if_missing": True,
     },
     "copilot": {
         "file": ".github/copilot-instructions.md",
         "label": "GitHub Copilot",
-        "create_if_missing": True,
     },
     "windsurf": {
         "file": ".windsurfrules",
         "label": "Windsurf",
-        "create_if_missing": True,
     },
     "cline": {
         "file": ".clinerules",
         "label": "Cline",
-        "create_if_missing": True,
+    },
+}
+
+# User-level global config paths (relative to $HOME).
+# Copilot excluded — it has no user-level global config.
+USER_PLATFORMS = {
+    "claude": {
+        "file": ".claude/CLAUDE.md",
+        "label": "Claude Code (global)",
+    },
+    "cursor": {
+        "file": ".cursor/rules/kodebrain.mdc",
+        "label": "Cursor (global)",
+    },
+    "windsurf": {
+        "file": ".windsurf/rules/kodebrain.mdc",
+        "label": "Windsurf (global)",
+    },
+    "cline": {
+        "file": ".clinerules",
+        "label": "Cline (global)",
     },
 }
 
 # ---------------------------------------------------------------------------
-# Block content
+# Block content — project level (project name is known)
 # ---------------------------------------------------------------------------
 
-def _claude_block(name: str) -> str:
+def _project_claude_block(name: str) -> str:
     return f"""{BLOCK_START}
 ## Kode Brain — Knowledge Base
 
@@ -78,7 +96,7 @@ Graph view:   Open `docs/brain/` as an Obsidian vault.
 {BLOCK_END}"""
 
 
-def _generic_block(name: str) -> str:
+def _project_generic_block(name: str) -> str:
     return f"""{BLOCK_START}
 ## Kode Brain — Knowledge Base
 
@@ -100,10 +118,64 @@ KB location:  `docs/brain/projects/{name}/`
 {BLOCK_END}"""
 
 
-def _make_block(platform: str, name: str) -> str:
-    if platform == "claude":
-        return _claude_block(name)
-    return _generic_block(name)
+# ---------------------------------------------------------------------------
+# Block content — user level (no project name, detects KB dynamically)
+# ---------------------------------------------------------------------------
+
+_USER_CLAUDE_BLOCK = f"""{BLOCK_START}
+## Kode Brain
+
+If the current project has `docs/brain/projects/`, it has a Kode Brain knowledge map.
+Use it before reading source files — it's 3–25× cheaper per query.
+
+**Session start:** Check for `docs/brain/projects/` and run `/kodebrain reading-pack "<task>"`.
+**After editing files:** Run `/kodebrain update --files <changed-files>`.
+**For questions:** Run `/kodebrain query "<question>"` before opening source files.
+**KB-first rule:** Read source files directly only for targeted edits or when a node is `confidence: stale`.
+{BLOCK_END}"""
+
+_USER_GENERIC_BLOCK = f"""{BLOCK_START}
+## Kode Brain
+
+If the current project has `docs/brain/projects/`, it has a Kode Brain knowledge map.
+Use it before reading source files.
+
+**Before starting:** Check for `docs/brain/projects/*/` and read the project hub and relevant domain pages.
+**Check for reading packs:** `docs/brain/projects/*/reports/reading-packs/` may have a pre-built context pack.
+**KB-first rule:** Use KB pages as primary source of truth before reading source files.
+{BLOCK_END}"""
+
+
+# ---------------------------------------------------------------------------
+# Shared helpers
+# ---------------------------------------------------------------------------
+
+def _write_block(target: Path, block: str) -> None:
+    target.parent.mkdir(parents=True, exist_ok=True)
+    existing = target.read_text(encoding="utf-8") if target.exists() else ""
+
+    if BLOCK_START in existing:
+        new_content = _BLOCK_RE.sub("", existing).rstrip("\n") + "\n\n" + block + "\n"
+    elif existing.strip():
+        new_content = existing.rstrip("\n") + "\n\n" + block + "\n"
+    else:
+        new_content = block + "\n"
+
+    target.write_text(new_content, encoding="utf-8")
+
+
+def _remove_block(target: Path) -> bool:
+    if not target.exists():
+        return False
+    original = target.read_text(encoding="utf-8")
+    if BLOCK_START not in original:
+        return False
+    cleaned = _BLOCK_RE.sub("", original).rstrip("\n")
+    if cleaned:
+        target.write_text(cleaned + "\n", encoding="utf-8")
+    else:
+        target.unlink()
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -115,18 +187,18 @@ def find_kb_name(root: Path) -> str | None:
     projects_dir = root / "docs" / "brain" / "projects"
     if not projects_dir.is_dir():
         return None
-    for child in projects_dir.iterdir():
+    for child in sorted(projects_dir.iterdir()):
         if child.is_dir() and (child / "graph" / "nodes.json").exists():
             return child.name
     return None
 
 
 # ---------------------------------------------------------------------------
-# Install / uninstall
+# Project-level install / uninstall
 # ---------------------------------------------------------------------------
 
-def install(root: Path, platforms: list[str]) -> list[str]:
-    """Write KB instruction blocks. Returns list of files written."""
+def install_project(root: Path, platforms: list[str]) -> list[str]:
+    """Write project-specific KB blocks. Returns list of relative paths written."""
     name = find_kb_name(root)
     if name is None:
         raise RuntimeError(
@@ -136,44 +208,52 @@ def install(root: Path, platforms: list[str]) -> list[str]:
 
     written: list[str] = []
     for platform in platforms:
-        cfg = PLATFORMS[platform]
+        cfg = PROJECT_PLATFORMS[platform]
         target = root / cfg["file"]
-
-        target.parent.mkdir(parents=True, exist_ok=True)
-
-        existing = target.read_text(encoding="utf-8") if target.exists() else ""
-        block = _make_block(platform, name)
-
-        if BLOCK_START in existing:
-            # Replace existing block
-            new_content = _BLOCK_RE.sub("", existing).rstrip("\n") + "\n\n" + block + "\n"
-        elif existing.strip():
-            # Append to existing file
-            new_content = existing.rstrip("\n") + "\n\n" + block + "\n"
-        else:
-            # New file
-            new_content = block + "\n"
-
-        target.write_text(new_content, encoding="utf-8")
+        block = _project_claude_block(name) if platform == "claude" else _project_generic_block(name)
+        _write_block(target, block)
         written.append(str(target.relative_to(root)))
 
     return written
 
 
-def uninstall(root: Path) -> list[str]:
-    """Remove KB blocks from all platform files. Returns list of files changed."""
+def uninstall_project(root: Path) -> list[str]:
+    """Remove project KB blocks. Returns list of relative paths changed."""
     changed: list[str] = []
-    for cfg in PLATFORMS.values():
+    for cfg in PROJECT_PLATFORMS.values():
         target = root / cfg["file"]
-        if not target.exists():
-            continue
-        original = target.read_text(encoding="utf-8")
-        if BLOCK_START not in original:
-            continue
-        cleaned = _BLOCK_RE.sub("", original).rstrip("\n")
-        if cleaned:
-            target.write_text(cleaned + "\n", encoding="utf-8")
-        else:
-            target.unlink()
-        changed.append(str(target.relative_to(root)))
+        if _remove_block(target):
+            changed.append(str(target.relative_to(root)))
+    return changed
+
+
+# ---------------------------------------------------------------------------
+# User-level install / uninstall
+# ---------------------------------------------------------------------------
+
+def install_user(platforms: list[str]) -> list[str]:
+    """Write user-level KB blocks to global config dirs. Returns list of absolute paths written."""
+    home = Path.home()
+    written: list[str] = []
+
+    for platform in platforms:
+        if platform not in USER_PLATFORMS:
+            continue  # e.g. copilot has no user-level config
+        cfg = USER_PLATFORMS[platform]
+        target = home / cfg["file"]
+        block = _USER_CLAUDE_BLOCK if platform == "claude" else _USER_GENERIC_BLOCK
+        _write_block(target, block)
+        written.append(str(target))
+
+    return written
+
+
+def uninstall_user() -> list[str]:
+    """Remove user-level KB blocks. Returns list of absolute paths changed."""
+    home = Path.home()
+    changed: list[str] = []
+    for cfg in USER_PLATFORMS.values():
+        target = home / cfg["file"]
+        if _remove_block(target):
+            changed.append(str(target))
     return changed
