@@ -84,6 +84,33 @@ def cmd_project_uninstall(platform: str, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_project_install_all(args: argparse.Namespace) -> int:
+    root = Path(args.path).resolve()
+    any_written = False
+    for platform in PROJECT_PLATFORMS:
+        try:
+            rel_path, note = install_project(root, platform)
+            print(f"  ✓ {rel_path}  ({platform})")
+            if note:
+                for line in note.splitlines():
+                    print(f"    {line}")
+            any_written = True
+        except RuntimeError as e:
+            print(f"  ✗ {platform}: {e}", file=sys.stderr)
+    if not any_written:
+        return 1
+    return 0
+
+
+def cmd_project_uninstall_all(args: argparse.Namespace) -> int:
+    root = Path(args.path).resolve()
+    for platform in PROJECT_PLATFORMS:
+        result = uninstall_project(root, platform)
+        if result:
+            print(f"  ✓ {result}  ({platform})")
+    return 0
+
+
 def cmd_hook(args: argparse.Namespace) -> int:
     root = Path(args.path).resolve()
     if not (root / ".git").is_dir():
@@ -131,6 +158,13 @@ def main() -> None:
         help="Target platform (default: all)",
     )
 
+    # Project: kodebrain project install/uninstall [path] — all platforms at once
+    pp_all = sub.add_parser("project", help="Write/remove ## Kode Brain for all project platforms at once.")
+    pp_all_sub = pp_all.add_subparsers(dest="project_cmd", required=True)
+    for pcmd in ("install", "uninstall"):
+        ppa = pp_all_sub.add_parser(pcmd, help=f"{pcmd.capitalize()} all project platform configs.")
+        ppa.add_argument("path", nargs="?", default=".", help="Project root (default: .)")
+
     # Per-platform project sub-commands
     for platform in PROJECT_PLATFORMS:
         pp = sub.add_parser(platform, help=f"Manage Kode Brain project config for {platform}.")
@@ -155,6 +189,11 @@ def main() -> None:
         sys.exit(cmd_global_install(args))
     elif args.command == "uninstall":
         sys.exit(cmd_global_uninstall(args))
+    elif args.command == "project":
+        if args.project_cmd == "install":
+            sys.exit(cmd_project_install_all(args))
+        elif args.project_cmd == "uninstall":
+            sys.exit(cmd_project_uninstall_all(args))
     elif args.command in PROJECT_PLATFORMS:
         platform = args.command
         sub_cmd = getattr(args, f"{platform}_cmd")

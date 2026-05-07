@@ -244,9 +244,9 @@ reports/needs-review.md      — ambiguous or needs_human_review items
 **13. Write project-level platform configs.** Run the kodebrain CLI to write agent instruction files for this project automatically — this is part of init, not a separate step:
 
 ```bash
-python3 -m kodebrain.cli install <root> 2>/dev/null \
+kodebrain project install <root> 2>/dev/null \
   && echo "Platform configs written." \
-  || echo "Tip: pip install kodebrain && kodebrain install . to set up platform configs."
+  || echo "Tip: pip install kodebrain && kodebrain project install . to set up platform configs."
 ```
 
 This writes `CLAUDE.md`, `AGENTS.md`, `.cursor/rules/kodebrain.mdc`, `.github/copilot-instructions.md`, `.windsurfrules`, `.clinerules`, and `opencode-instructions.md` with KB-specific instructions for each platform. If the package is not installed, print the tip and continue — do not fail.
