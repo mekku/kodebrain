@@ -35,10 +35,16 @@ SOURCE_EXTENSIONS = {
 }
 
 IGNORE_DIRS = {
-    'node_modules', '.git', 'dist', 'build', 'out', '.next',
-    '__pycache__', '.venv', 'venv', '.mypy_cache',
-    'coverage', '.coverage', 'htmlcov',
+    'node_modules', 'dist', 'build', 'out',
+    '__pycache__', 'venv', '.mypy_cache',
+    'coverage', 'htmlcov',
     'vendor', 'target', '.gradle',
+}
+
+# Next.js App Router filenames — discovered by convention, never imported
+NEXTJS_APP_ROUTER_NAMES = {
+    'route', 'page', 'layout', 'loading', 'error',
+    'not-found', 'template', 'default',
 }
 
 TEST_PATTERNS = re.compile(
@@ -49,6 +55,15 @@ TEST_PATTERNS = re.compile(
 
 # Entry point filenames — zero importers is expected, not a signal of being unused
 ENTRY_POINT_NAMES = {'server', 'main', 'index', 'app', 'cli', 'cmd', 'run', 'start'}
+
+# Framework config / declaration files — discovered by convention, not imported
+CONFIG_FILE_NAMES = {
+    'next.config', 'next-env.d',
+    'playwright.config', 'jest.config', 'vitest.config',
+    'tailwind.config', 'postcss.config', 'eslint.config',
+    'vite.config', 'webpack.config',
+    'tsconfig', 'jsconfig',
+}
 
 # ── Language-specific extraction ───────────────────────────────────────────────
 
@@ -71,6 +86,10 @@ _TS_IMPORT = re.compile(
     re.MULTILINE,
 )
 _TS_REQUIRE = re.compile(r'require\s*\(\s*[\'"]([^\'"]+)[\'"]\s*\)', re.MULTILINE)
+# Re-export: export { X } from '...' or export * from '...'
+_TS_REEXPORT = re.compile(r'^export\s+(?:\{[^}]*\}|\*)\s+from\s+[\'"]([^\'"]+)[\'"]', re.MULTILINE)
+# Dynamic import: import('...')
+_TS_DYNAMIC_IMPORT = re.compile(r'\bimport\s*\(\s*[\'"]([^\'"]+)[\'"]\s*\)', re.MULTILINE)
 
 # Python
 _PY_DEF = re.compile(r'^(def|class|async def)\s+([A-Za-z_]\w*)', re.MULTILINE)
@@ -112,7 +131,12 @@ def _extract_ts(content: str) -> dict:
     exports = [m.group(2) for m in _TS_EXPORT.finditer(content)]
     exports += _TS_EXPORT_DEFAULT.findall(content)
     routes = [f"{m.group(1)}.{m.group(2)}()" for m in _TS_ROUTE.finditer(content)]
-    imports = _TS_IMPORT.findall(content) + _TS_REQUIRE.findall(content)
+    imports = (
+        _TS_IMPORT.findall(content)
+        + _TS_REQUIRE.findall(content)
+        + _TS_REEXPORT.findall(content)
+        + _TS_DYNAMIC_IMPORT.findall(content)
+    )
     return {'exports': exports, 'routes': routes, 'imports': imports}
 
 
@@ -167,6 +191,17 @@ def _is_entry_point(path: str) -> bool:
     return stem in ENTRY_POINT_NAMES and len(parts) <= 2
 
 
+def _is_nextjs_app_router(path: str) -> bool:
+    """Next.js App Router files under app/ — file-system routed, never imported."""
+    p = Path(path)
+    stem = p.stem.lower()
+    if stem not in NEXTJS_APP_ROUTER_NAMES:
+        return False
+    # Must be inside an app/ directory somewhere in the path
+    parts = p.parts
+    return any(part == 'app' for part in parts[:-1])
+
+
 def _classify_status(
     path: str,
     exports: list,
@@ -182,6 +217,18 @@ def _classify_status(
 
     # Entry points are never "unused" — they're process roots, not imported
     if _is_entry_point(path) and not imported_by:
+        return 'active'
+
+    # Next.js App Router files — discovered by file-system convention, not imports
+    if _is_nextjs_app_router(path):
+        return 'active'
+
+    # Framework config / declaration files — never imported by project code
+    if Path(path).stem in CONFIG_FILE_NAMES:
+        return 'active'
+
+    # Standalone scripts in scripts/ — run directly, not imported
+    if Path(path).parts[0] == 'scripts':
         return 'active'
 
     # Deprecated signal wins
@@ -225,27 +272,34 @@ def _build_reverse_map(
         stem_map.setdefault(stem, []).append(p)
 
     for importer, data in partial.items():
-        importer_dir = str(Path(importer).parent)
         for raw_imp in data.get('imports', []):
-            # Normalize: strip leading ./ and leading slashes
-            imp = raw_imp.lstrip('./')
-            # Try to match by: file stem, or path suffix
-            matched = False
+            # Resolve TypeScript path aliases: @/ → src/
+            if raw_imp.startswith('@/'):
+                imp = 'src/' + raw_imp[2:]
+            else:
+                # Normalize: strip leading ./ and leading slashes
+                imp = raw_imp.lstrip('./')
+
+            imp_no_ext = str(Path(imp).with_suffix('')) if Path(imp).suffix in SOURCE_EXTENSIONS else imp
+            imp_stem = Path(imp).stem
+
             for candidate in paths:
                 if candidate == importer:
                     continue
                 cand_no_ext = str(Path(candidate).with_suffix(''))
                 cand_stem = Path(candidate).stem
                 if (
-                    cand_no_ext.endswith(imp)
-                    or cand_stem == imp
-                    or cand_stem == Path(imp).stem
+                    cand_no_ext == imp_no_ext
+                    or cand_no_ext.endswith('/' + imp_no_ext)
+                    or cand_stem == imp_stem
                     or candidate == imp
                     or candidate == imp + Path(candidate).suffix
+                    # Barrel resolution: `@/lib/foo` → `src/lib/foo/index.ts`
+                    or cand_no_ext == imp_no_ext + '/index'
+                    or cand_no_ext.endswith('/' + imp_no_ext + '/index')
                 ):
                     if importer not in reverse[candidate]:
                         reverse[candidate].append(importer)
-                    matched = True
                     break
     return reverse
 
@@ -267,7 +321,10 @@ def _find_source_files(root: Path) -> list[Path]:
             continue
         if p.suffix not in SOURCE_EXTENSIONS:
             continue
-        if any(part in IGNORE_DIRS for part in p.parts):
+        # Skip hidden directories (dot-prefix) and named ignore dirs
+        # Check intermediate parts only (not the filename itself)
+        rel_parts = p.relative_to(root).parts[:-1]
+        if any(part.startswith('.') or part in IGNORE_DIRS for part in rel_parts):
             continue
         results.append(p)
     return results
