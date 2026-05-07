@@ -56,6 +56,7 @@ docs/brain/projects/<name>/
     nodes.json
     edges.json
     file-index.json
+    file-hashes.json          ← SHA256 per source file; drives hash-based update detection
   reports/
     unmapped-files.md
     suspected-legacy.md
@@ -100,6 +101,93 @@ tags:
 
 ---
 
+## Harvest Phase
+
+The harvest phase extracts structured data from source files using deterministic shell commands. LLM never reads raw source files — it reads harvest briefs instead. This reduces init token cost by ~5–10x and makes update detection precise.
+
+### H1. Hash files
+
+```bash
+find <root>/src -type f \( -name "*.ts" -o -name "*.py" -o -name "*.go" \) | sort | \
+  while read f; do shasum -a 256 "$f"; done
+```
+
+Compare against `graph/file-hashes.json` (load if it exists). Files whose hash differs are **dirty**. New files are also dirty. Save updated hashes to `graph/file-hashes.json` after all pages are written.
+
+`file-hashes.json` format:
+```json
+{ "src/services/AuthService.ts": "abc123...", "src/models/Task.ts": "def456..." }
+```
+
+### H2. Extract exports
+
+```bash
+# TypeScript / JavaScript
+grep -rEn "^export (function|class|const|type|interface|enum|async function)" <root>/src \
+  --include="*.ts" --include="*.js"
+
+# Python
+grep -rEn "^def |^class " <root>/src --include="*.py"
+
+# Go
+grep -rEn "^func [A-Z]" <root>/src --include="*.go"
+```
+
+### H3. Extract routes
+
+```bash
+# TypeScript — match only Router/app callers, not redis.get() etc.
+grep -rEn "\b(app|router|[A-Za-z]+[Rr]outer)\.(get|post|put|delete|patch)\s*\(" <root>/src \
+  --include="*.ts"
+
+# Python FastAPI / Flask
+grep -rEn "@(app|router)\.(get|post|put|delete|patch)" <root>/src --include="*.py"
+```
+
+### H4. Extract import graph
+
+```bash
+grep -rEn "^import |^from " <root>/src --include="*.ts" --include="*.py"
+```
+
+Post-process: build a reverse map — for each file, list which other files import it (importer list). A file with zero importers is a candidate for `suspected_unused`.
+
+### H5. Detect status signals
+
+```bash
+grep -rEn "@deprecated|// DEPRECATED|// deprecated|TODO.*(remov|migrat|deprecat)|FIXME" \
+  <root>/src --include="*.ts" --include="*.py"
+```
+
+**Deterministic classification rules** (no LLM judgment):
+
+| Signal | → Status |
+|---|---|
+| `@deprecated` or `// DEPRECATED` in file | `deprecated` |
+| Zero importers AND zero route refs | `suspected_unused` |
+| `TODO.*remov` or `TODO.*migrat` comment | `partially_migrated` |
+| Filename contains `V1`, `Old`, `Legacy`, `Backup` | `suspected_legacy` |
+| Same-base sibling exists with V2/new suffix | `partially_migrated` |
+| None of above | `active` |
+
+### H6. Build harvest briefs
+
+Combine H2–H5 results per file into a ~150-token structured brief:
+
+```
+File: src/services/TaskService.ts
+Exports: createTask, updateTask, getTaskById, listTasks
+Routes: none
+Imports: TaskRepository, CacheService, NotificationService
+Imported by: tasks.controller.ts, admin.controller.ts
+Status signals: none
+Test file: src/services/TaskService.test.ts ✓
+```
+
+**LLM reads harvest briefs, not raw source files.** All narration (domain detection, capability naming, flow tracing, concept identification) uses briefs as input.
+
+---
+
 ## Sub-command: init
 
 **Purpose:** Scan a project for the first time and produce the initial knowledge map.
@@ -108,47 +196,21 @@ tags:
 
 **1. Confirm project root.** Look for `package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, `pom.xml`, or a `src/` directory. If none found, warn and ask for confirmation.
 
-**2. Scan files.**
-```bash
-find <root> -type f \
-  ! -path "*/node_modules/*" ! -path "*/.git/*" ! -path "*/dist/*" \
-  ! -path "*/build/*" ! -path "*/__pycache__/*" ! -path "*/.venv/*" \
-  | sort
-```
-Classify each file:
-- `source` — `.ts .tsx .js .jsx .py .go .rs .java .rb .php .cs .swift .kt`
-- `config` — `.json .yaml .yml .toml .env .ini .xml` at root or in config/
-- `test` — in `test/` `tests/` `spec/` `__tests__/` or named `*.test.*` `*.spec.*`
-- `migration` — in `migrations/` `db/migrate/` or named `*_migration.*`
-- `doc` — `.md .rst .txt` in docs/ or root
+**2. Run harvest phase.** Execute steps H1–H6 from the Harvest Phase section above. This produces: file hashes, export map, route map, import/importer map, status signals, and per-file harvest briefs. Do not read raw source files — all subsequent steps use harvest briefs.
 
-**3. Find entry points.** Look for: `main.ts` `main.py` `index.ts` `app.ts` `server.ts` `cmd/` `cli.ts`, and route registration files (files that call `app.use`, `router.add`, or `app.include_router`).
+**3. Classify domains.** From harvest briefs: a domain candidate is a folder whose briefs collectively include a service export, a model/repository export, and at least one route reference. Name domains after the folder (title-cased). Always check for: Auth, User, Billing/Payment, Notification, Admin, Core/Shared. Flag anything unclusterable as `unmapped`.
 
-**4. Extract symbols.** For each source file, identify:
-- Exported functions and classes — look for `export function` `export class` `export const` `def ` `func ` `pub fn` `public class`
-- Route definitions — look for `.get(` `.post(` `.put(` `.delete(` `.patch(` `@app.route` `@router.` `r.Handle` `router.`
-- Model/schema definitions — look for `@Entity` `Schema(` `model.define` `z.object` `BaseModel` `mongoose.model`
-- Imports — what each file imports from where
+**4. Detect capabilities.** Per domain: derive from route patterns and service export names in briefs. Phrase as verb phrases: "Create order", "Send notification", "Validate user session". Aim for 5–10 per domain.
 
-**5. Detect domains.** A domain candidate is a folder containing a service file, a model/repository file, and at least one route or handler. Name domains after the folder (title-cased). Always check for: Auth, User, Billing/Payment, Notification, Admin, Core/Shared. Flag anything unclusterable as `unmapped`.
+**5. Trace flows.** For the top 3–5 capabilities per domain, trace the runtime path using the import graph from H4: entry route → service methods → downstream imports → side effects (cache writes, queue, email). Use brief data only — do not read source files.
 
-**6. Detect capabilities.** Per domain: derive from route handlers ("what does each route do?") and service method names ("what does each public method do?"). Phrase as verb phrases: "Create order", "Send notification", "Validate user session". Aim for 5–10 per domain.
+**6. Identify concepts.** A concept is a non-obvious mental model needed before working with the domain. Look for: terms that appear across multiple file exports that aren't self-explanatory, adapter patterns, caching strategies, state machines, dual-write periods. Target 3–7 per domain.
 
-**7. Extract flows.** For the top 3–5 capabilities per domain, trace the runtime path:
-- Entry: which route or event?
-- Steps: which service methods in which order?
-- Data: what is read, what is written?
-- Side effects: cache, events, queues, emails?
+**7. Identify risks.** From status signals (H5): deprecated files still imported by active code, V1 routes still registered alongside V2, `TODO: migrate` comments with no timeline. Write a risk node for each.
 
-**8. Identify concepts.** A concept is a non-obvious mental model needed before working with the domain. Look for: terms used across multiple files that aren't self-explanatory, adapter patterns, multi-tenancy, caching strategies, state machines, dual-write periods. Target 3–7 per domain.
+**8. Find entry points.** From route grep (H3) and import graph: identify `main.ts` `app.ts` `server.ts` `index.ts` or equivalent. Record in project hub.
 
-**9. Classify status.** For each node:
-- `active` — has route refs, recent imports, tests
-- `legacy` — old folder name, `TODO`/`DEPRECATED` comment, newer replacement exists
-- `unused` — no imports, no route ref, no test (flag for human review — do NOT delete)
-- `unknown` — insufficient signal
-
-**10. Write pages.** For each `source_supported` node: generate using the matching template from `templates/`. For each `inferred` node: same but add the draft banner. Write to the correct path under `docs/brain/projects/<name>/`.
+**9. Write pages.** For each `source_supported` node: generate using the matching template from `templates/`. For each `inferred` node: same but add the draft banner. Write to the correct path under `docs/brain/projects/<name>/`.
 
   File naming rules:
   - Domain hub: `domains/<slug>/<slug>.md` (e.g., `domains/auth/auth.md`) — enables `[[auth]]` links
@@ -160,13 +222,14 @@ Classify each file:
   - Cross-type links: `[[auth-login-flow|Login Flow]]`, `[[auth-user-model|User Model]]`
   - These wiki-links create the Obsidian graph edges — they are the graph
 
-**10a. Write Obsidian config.** Copy `obsidian-vault-config/graph.json` and `app.json` to `docs/brain/.obsidian/`. Only do this on first init (don't overwrite if already present).
+**10. Write Obsidian config.** Copy `obsidian-vault-config/graph.json` and `app.json` to `docs/brain/.obsidian/`. Only do this on first init (don't overwrite if already present).
 
 **11. Write graph files.**
 ```
-docs/brain/projects/<name>/graph/nodes.json      — all nodes (see schema/node.schema.json)
-docs/brain/projects/<name>/graph/edges.json      — all edges (see schema/edge.schema.json)
-docs/brain/projects/<name>/graph/file-index.json — { "src/file.ts": ["node-id", ...] }
+docs/brain/projects/<name>/graph/nodes.json       — all nodes (see schema/node.schema.json)
+docs/brain/projects/<name>/graph/edges.json       — all edges (see schema/edge.schema.json)
+docs/brain/projects/<name>/graph/file-index.json  — { "src/file.ts": ["node-id", ...] }
+docs/brain/projects/<name>/graph/file-hashes.json — { "src/file.ts": "sha256...", ... }
 ```
 
 **12. Write reports.**
@@ -201,15 +264,16 @@ Graph view:     Open docs/brain/ as an Obsidian vault → Graph view
 
 ### Steps
 
-1. Load `nodes.json`, `edges.json`, `file-index.json`.
-2. Run current file scan (steps 2–9 of `init`).
-3. Compare:
-   - **New file not in file-index** → run capability/flow detection, write new node if confident
-   - **Existing node's source files changed** → set `confidence: stale`, add to stale-docs.md
-   - **File in file-index no longer exists** → mark referenced nodes `confidence: stale`, add to needs-review.md
-4. Write updated pages for `source_supported` nodes only.
-5. Set `confidence: stale` on changed nodes without rewriting body content.
-6. Update graph files. Print change summary.
+1. Load `nodes.json`, `edges.json`, `file-index.json`, `file-hashes.json`.
+2. Re-run harvest step H1 on all source files. Compare new hashes against `file-hashes.json`:
+   - **Hash changed** → file is dirty
+   - **File not in file-hashes.json** → new file (dirty)
+   - **In file-hashes.json but not on disk** → deleted
+3. For dirty files: re-run H2–H6 on those files only to produce updated harvest briefs.
+4. For dirty files: look up node IDs in `file-index.json`. Re-narrate affected nodes from updated briefs. Set `confidence: source_supported`.
+5. For deleted files: mark all referenced nodes `confidence: stale`. Add to `reports/needs-review.md`.
+6. For new files with no existing node: run domain/capability detection from brief. Write new node if `source_supported`.
+7. Update `file-hashes.json` with new hashes. Update graph files. Print change summary: dirty/new/deleted file counts and affected node count.
 
 ---
 
@@ -222,8 +286,8 @@ Graph view:     Open docs/brain/ as an Obsidian vault → Graph view
 ### Steps
 
 1. Load `nodes.json` and `edges.json` from `docs/brain/projects/<name>/graph/`.
-2. Parse the query: extract entity names (nouns) and action words (verbs). Match against node `name` and `summary` fields.
-3. Find candidate nodes. Traverse edges from candidates: follow `contains`, `calls`, `reads_from`, `writes_to`, `invalidates`, `part_of_flow` edges to collect related nodes.
+2. **Find seed nodes.** Extract entity names and action keywords from the query. Find nodes whose `name` or `summary` contains any of these terms. If no matches, fall back to domain-level nodes for the most relevant domain.
+3. **BFS traversal.** Starting from seed nodes, traverse edges outward to depth 2. Follow edge types: `contains`, `calls`, `reads_from`, `writes_to`, `invalidates`, `part_of_flow`. Collect all reached nodes. Always include nodes linked via `has_caveat` regardless of depth.
 4. Read the Markdown page for each collected node (summary + status sections).
 5. Collect risks: `caveat` nodes connected to collected nodes, nodes with `legacy` or `partially_migrated` status.
 6. Print:
@@ -312,20 +376,47 @@ Graph view:     Open docs/brain/ as an Obsidian vault → Graph view
 
 ## Sub-command: update
 
-**Purpose:** Update KB pages affected by recent code changes.
+**Purpose:** Update KB pages affected by recent code changes. Designed to be called by an agent after editing source files — keeps the KB current within a session.
 
 ### Steps
 
 1. Get changed files:
    - `--diff`: run `git diff --name-only HEAD`
    - `--files f1 f2 ...`: use provided list
-2. Load `file-index.json`. For each changed file, find node IDs that reference it.
-3. For each affected node:
-   - Determine change type: `behavior_change` / `refactor` / `migration` / `removal` / `addition`
-   - Behavior changed → update relevant page sections, set `confidence: source_supported`
-   - Refactor only → update `source_files` list and `last_reviewed`, no content change
-   - Removal → set `status: unused`, `confidence: needs_human_review`, add to needs-review.md
-4. Update `nodes.json`. Print summary.
+2. For each changed file: re-run harvest steps H2–H5 to produce an updated harvest brief. Compare new status signals against the existing node's `status` field.
+3. Load `file-index.json`. Find node IDs referencing each changed file.
+4. For each affected node, re-narrate from the updated harvest brief:
+   - Behavior changed (new/removed exports or routes) → rewrite relevant page sections, set `confidence: source_supported`
+   - Refactor only (no export/route changes) → update `source_files` and `last_reviewed`, no content change
+   - File deleted → set `status: unused`, `confidence: needs_human_review`, add to needs-review.md
+5. Update `file-hashes.json` with new hashes for changed files.
+6. Update `nodes.json`. Print summary: files changed, nodes affected, sections rewritten.
+
+---
+
+## Agent Working Pattern
+
+An agent working in a KB-enabled codebase should use KB pages as its primary source of truth instead of reading source files. This eliminates repeated navigation overhead and keeps token cost low across a multi-file edit session.
+
+**Session start — load context before touching any code:**
+```
+/kodebrain reading-pack "<task description>"
+```
+Read the saved reading pack. It contains: relevant domain hubs, flow paths, source file hints, and active warnings. Do not read source files not listed in the pack until you need to make a targeted edit.
+
+**After editing source files — keep the KB current:**
+```
+/kodebrain update --files src/services/TaskService.ts src/api/tasks/tasks.controller.ts
+```
+Call this after each batch of edits. The KB re-harvests the changed files and re-narrates affected nodes. Subsequent queries return fresh KB data, not stale pre-edit state.
+
+**Answering questions during the session:**
+```
+/kodebrain query "<question>"
+```
+Answer from KB pages. Read source files directly only when the KB reports `confidence: stale` or `needs_human_review` on a node directly relevant to your answer.
+
+**Rule of thumb:** KB first. Source file only when KB is stale or you are making a targeted edit to that file.
 
 ---
 
