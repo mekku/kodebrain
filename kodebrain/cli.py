@@ -27,8 +27,8 @@ from kodebrain.install import (
 )
 from kodebrain import hook as _hook
 
-ALL_PROJECT_PLATFORMS = list(PROJECT_PLATFORMS.keys())
-ALL_USER_PLATFORMS = list(USER_PLATFORMS.keys())
+ALL_PROJECT_PLATFORMS = list(PROJECT_PLATFORMS.keys())  # claude cursor copilot windsurf cline codex opencode
+ALL_USER_PLATFORMS = list(USER_PLATFORMS.keys())        # claude cursor windsurf cline codex opencode
 
 
 def cmd_install(args: argparse.Namespace) -> int:
@@ -57,13 +57,16 @@ def cmd_install(args: argparse.Namespace) -> int:
             print(f"error: {e}", file=sys.stderr)
             return 1
         print(f"Kode Brain installed in {root.name}/")
-        for f in written:
+        for f, note in written:
             label = next(
                 (PROJECT_PLATFORMS[p]["label"] for p in PROJECT_PLATFORMS
                  if PROJECT_PLATFORMS[p]["file"] == f),
                 f,
             )
             print(f"  ✓ {f}  ({label})")
+            if note:
+                for line in note.splitlines():
+                    print(f"    {line}")
 
     return 0
 

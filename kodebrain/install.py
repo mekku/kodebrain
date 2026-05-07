@@ -47,10 +47,25 @@ PROJECT_PLATFORMS = {
         "file": ".clinerules",
         "label": "Cline",
     },
+    "codex": {
+        "file": "AGENTS.md",
+        "label": "OpenAI Codex CLI",
+    },
+    "opencode": {
+        # OpenCode reads instructions from paths listed in opencode.jsonc.
+        # We write the file here; a note is printed telling the user to register it.
+        "file": "opencode-instructions.md",
+        "label": "OpenCode",
+        "note": (
+            "Add to opencode.jsonc:\n"
+            '  "instructions": ["opencode-instructions.md"]'
+        ),
+    },
 }
 
 # User-level global config paths (relative to $HOME).
-# Copilot excluded — it has no user-level global config.
+# Copilot excluded — no user-level global config.
+# OpenCode user agents live in ~/.config/opencode/agents/ as individual .md files.
 USER_PLATFORMS = {
     "claude": {
         "file": ".claude/CLAUDE.md",
@@ -67,6 +82,14 @@ USER_PLATFORMS = {
     "cline": {
         "file": ".clinerules",
         "label": "Cline (global)",
+    },
+    "codex": {
+        "file": ".codex/AGENTS.md",
+        "label": "OpenAI Codex CLI (global)",
+    },
+    "opencode": {
+        "file": ".config/opencode/agents/kodebrain.md",
+        "label": "OpenCode (global)",
     },
 }
 
@@ -146,6 +169,18 @@ Use it before reading source files.
 {BLOCK_END}"""
 
 
+def _make_project_block(platform: str, name: str) -> str:
+    if platform == "claude":
+        return _project_claude_block(name)
+    return _project_generic_block(name)
+
+
+def _make_user_block(platform: str) -> str:
+    if platform == "claude":
+        return _USER_CLAUDE_BLOCK
+    return _USER_GENERIC_BLOCK
+
+
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
@@ -197,8 +232,9 @@ def find_kb_name(root: Path) -> str | None:
 # Project-level install / uninstall
 # ---------------------------------------------------------------------------
 
-def install_project(root: Path, platforms: list[str]) -> list[str]:
-    """Write project-specific KB blocks. Returns list of relative paths written."""
+def install_project(root: Path, platforms: list[str]) -> list[tuple[str, str | None]]:
+    """Write project-specific KB blocks.
+    Returns list of (relative_path, note_or_None) tuples."""
     name = find_kb_name(root)
     if name is None:
         raise RuntimeError(
@@ -206,13 +242,12 @@ def install_project(root: Path, platforms: list[str]) -> list[str]:
             "Run /kodebrain init first."
         )
 
-    written: list[str] = []
+    written: list[tuple[str, str | None]] = []
     for platform in platforms:
         cfg = PROJECT_PLATFORMS[platform]
         target = root / cfg["file"]
-        block = _project_claude_block(name) if platform == "claude" else _project_generic_block(name)
-        _write_block(target, block)
-        written.append(str(target.relative_to(root)))
+        _write_block(target, _make_project_block(platform, name))
+        written.append((str(target.relative_to(root)), cfg.get("note")))
 
     return written
 
@@ -241,8 +276,7 @@ def install_user(platforms: list[str]) -> list[str]:
             continue  # e.g. copilot has no user-level config
         cfg = USER_PLATFORMS[platform]
         target = home / cfg["file"]
-        block = _USER_CLAUDE_BLOCK if platform == "claude" else _USER_GENERIC_BLOCK
-        _write_block(target, block)
+        _write_block(target, _make_user_block(platform))
         written.append(str(target))
 
     return written
