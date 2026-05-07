@@ -10,6 +10,7 @@ Usage:
   python3 harvest.py <root> --hashes file-hashes.json  # incremental (scan/update)
   python3 harvest.py <root> --files src/a.ts src/b.ts  # targeted (update --files)
   python3 harvest.py <root> --output briefs.json     # write to file instead of stdout
+  python3 harvest.py --build-index nodes.json        # build file-index.json from nodes
 """
 
 import argparse
@@ -440,6 +441,199 @@ def harvest(
     }
 
 
+# ── File-index builder ────────────────────────────────────────────────────────
+
+def _load_nodes(data) -> list[dict]:
+    """Accept both raw array and {"nodes": [...]} wrapper formats."""
+    if isinstance(data, dict) and 'nodes' in data:
+        return data['nodes']
+    return data
+
+
+def build_file_index(nodes_path: Path) -> dict[str, list[str]]:
+    """
+    Invert nodes.json source_files → file-index.json.
+
+    For every node that lists source_files, adds node_id to the index entry
+    for each file.  Files not referenced by any node get an empty list.
+    """
+    nodes = _load_nodes(json.loads(nodes_path.read_text(encoding='utf-8')))
+    index: dict[str, list[str]] = {}
+    for node in nodes:
+        node_id = node.get('id', '')
+        for src in node.get('source_files', []):
+            index.setdefault(src, [])
+            if node_id and node_id not in index[src]:
+                index[src].append(node_id)
+    return index
+
+
+# ── Benchmark ─────────────────────────────────────────────────────────────────
+
+def run_benchmark(kb_project_dir: Path, source_root: Path | None = None) -> dict:
+    """
+    Compute all KB health metrics from graph files. Pure data — no LLM judgment.
+
+    kb_project_dir: the docs/brain/projects/<name>/ directory (contains graph/ and reports/)
+    source_root:    optional project source root, used for token efficiency numbers
+    """
+    graph_dir = kb_project_dir / 'graph'
+    reports_dir = kb_project_dir / 'reports'
+
+    # Load graph files
+    nodes: list[dict] = _load_nodes(json.loads((graph_dir / 'nodes.json').read_text()))
+    edges_raw = json.loads((graph_dir / 'edges.json').read_text())
+    edges: list[dict] = edges_raw.get('edges', edges_raw) if isinstance(edges_raw, dict) else edges_raw
+    file_index: dict[str, list[str]] = json.loads((graph_dir / 'file-index.json').read_text())
+    file_hashes: dict[str, str] = json.loads((graph_dir / 'file-hashes.json').read_text())
+
+    node_map = {n['id']: n for n in nodes}
+
+    # ── Coverage ──────────────────────────────────────────────────────────────
+    total_source_files = len(file_hashes)
+    mapped_files = sum(1 for v in file_index.values() if v)
+    unmapped_files = total_source_files - mapped_files
+    coverage_pct = mapped_files / total_source_files * 100 if total_source_files else 0
+
+    # ── Node counts ───────────────────────────────────────────────────────────
+    from collections import Counter
+    type_counts = Counter(n['type'] for n in nodes)
+    status_counts = Counter(n['status'] for n in nodes)
+    conf_counts = Counter(n['confidence'] for n in nodes)
+
+    # ── Edge counts ───────────────────────────────────────────────────────────
+    edge_type_counts = Counter(e['type'] for e in edges)
+
+    def get_domain(node_id: str) -> str | None:
+        n = node_map.get(node_id)
+        return n.get('domain') if n else None
+
+    cross_domain_edges = [
+        e for e in edges
+        if (d1 := get_domain(e['from'])) and (d2 := get_domain(e['to'])) and d1 != d2
+    ]
+
+    # ── Graph metrics ─────────────────────────────────────────────────────────
+    degree: Counter = Counter()
+    for e in edges:
+        degree[e['from']] += 1
+        degree[e['to']] += 1
+
+    orphan_nodes = [n['id'] for n in nodes if degree[n['id']] == 0]
+    avg_degree = (2 * len(edges) / len(nodes)) if nodes else 0
+    top_hubs = [
+        {'id': nid, 'degree': deg, 'type': node_map[nid]['type']}
+        for nid, deg in degree.most_common(5)
+        if nid in node_map
+    ]
+
+    # ── Risk surface ──────────────────────────────────────────────────────────
+    risk_nodes = [n for n in nodes if n['type'] == 'caveat']
+    legacy_nodes = [
+        n for n in nodes
+        if n['status'] in ('legacy', 'deprecated', 'partially_migrated', 'unused')
+    ]
+
+    # Severity breakdown from node 'severity' field
+    severity_counts: Counter = Counter()
+    for n in risk_nodes:
+        severity_counts[n.get('severity', 'untagged')] += 1
+
+    def _count_headings(md_path: Path) -> int:
+        if not md_path.exists():
+            return 0
+        import re
+        return len(re.findall(r'^## ', md_path.read_text(), re.MULTILINE))
+
+    needs_review_items = _count_headings(reports_dir / 'needs-review.md')
+    suspected_legacy_items = _count_headings(reports_dir / 'suspected-legacy.md')
+
+    # ── Quality scores ────────────────────────────────────────────────────────
+    n_total = len(nodes)
+    confidence_score = (
+        conf_counts.get('verified', 0) * 100
+        + conf_counts.get('source_supported', 0) * 80
+        + conf_counts.get('inferred', 0) * 40
+        + conf_counts.get('ambiguous', 0) * 10
+    ) / n_total if n_total else 0
+
+    coverage_score = coverage_pct
+    connectedness_score = 100 - (len(orphan_nodes) / n_total * 100) if n_total else 0
+    risk_score = min(100, len(risk_nodes) * 20 + len(legacy_nodes) * 10)
+    overall_score = (coverage_score + confidence_score + connectedness_score + risk_score) / 4
+
+    def _grade(score: float) -> str:
+        if score >= 90: return 'Excellent'
+        if score >= 75: return 'Good'
+        if score >= 60: return 'Fair'
+        return 'Needs work'
+
+    # ── Token efficiency ──────────────────────────────────────────────────────
+    kb_md_bytes = sum(p.stat().st_size for p in kb_project_dir.rglob('*.md'))
+    kb_json_bytes = sum(p.stat().st_size for p in graph_dir.glob('*.json'))
+    kb_total_bytes = kb_md_bytes + kb_json_bytes
+
+    source_bytes: int | None = None
+    if source_root:
+        source_bytes = sum(
+            (source_root / rel).stat().st_size
+            for rel in file_hashes
+            if (source_root / rel).exists()
+        )
+
+    # ── Assemble result ───────────────────────────────────────────────────────
+    result = {
+        'coverage': {
+            'total_source_files': total_source_files,
+            'mapped_files': mapped_files,
+            'unmapped_files': unmapped_files,
+            'coverage_pct': round(coverage_pct, 1),
+        },
+        'nodes': {
+            'total': n_total,
+            'by_type': dict(type_counts),
+            'by_status': dict(status_counts),
+            'by_confidence': dict(conf_counts),
+        },
+        'edges': {
+            'total': len(edges),
+            'by_type': dict(edge_type_counts),
+            'cross_domain': len(cross_domain_edges),
+        },
+        'graph': {
+            'avg_degree': round(avg_degree, 1),
+            'orphan_count': len(orphan_nodes),
+            'orphan_nodes': orphan_nodes,
+            'top_hubs': top_hubs,
+        },
+        'risk_surface': {
+            'risk_nodes': len(risk_nodes),
+            'risk_nodes_by_severity': dict(severity_counts),
+            'legacy_deprecated_nodes': len(legacy_nodes),
+            'needs_review_items': needs_review_items,
+            'suspected_legacy_items': suspected_legacy_items,
+        },
+        'scores': {
+            'coverage': round(coverage_score),
+            'confidence': round(confidence_score),
+            'connectedness': round(connectedness_score),
+            'risk_awareness': round(risk_score),
+            'overall': round(overall_score),
+            'grade': _grade(overall_score),
+        },
+        'token_efficiency': {
+            'kb_md_bytes': kb_md_bytes,
+            'kb_json_bytes': kb_json_bytes,
+            'kb_total_bytes': kb_total_bytes,
+            'kb_est_tokens': kb_total_bytes // 4,
+            'source_bytes': source_bytes,
+            'source_est_tokens': (source_bytes // 4) if source_bytes else None,
+            'compression_ratio': round(source_bytes / kb_total_bytes, 1) if source_bytes else None,
+        },
+    }
+    return result
+
+
 # ── CLI ────────────────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -448,7 +642,25 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    parser.add_argument('root', help='Project root directory')
+    parser.add_argument(
+        '--build-index',
+        metavar='NODES_JSON',
+        help='Build file-index.json by inverting source_files in nodes.json. '
+             'Writes to <nodes_dir>/file-index.json. All other args ignored.',
+    )
+    parser.add_argument(
+        '--benchmark',
+        metavar='KB_PROJECT_DIR',
+        help='Compute KB health metrics from graph files. '
+             'Pass the docs/brain/projects/<name>/ directory. '
+             'Use --source-root to include token efficiency numbers.',
+    )
+    parser.add_argument(
+        '--source-root',
+        metavar='DIR',
+        help='Project source root for token efficiency metrics (used with --benchmark).',
+    )
+    parser.add_argument('root', nargs='?', help='Project root directory')
     parser.add_argument(
         '--hashes',
         metavar='FILE',
@@ -466,6 +678,36 @@ def main() -> None:
         help='Write JSON output to this file (default: stdout)',
     )
     args = parser.parse_args()
+
+    # ── --benchmark mode ──────────────────────────────────────────────────────
+    if args.benchmark:
+        kb_dir = Path(args.benchmark).resolve()
+        if not kb_dir.exists():
+            print(f'Error: KB project dir "{kb_dir}" does not exist', file=sys.stderr)
+            sys.exit(1)
+        source_root = Path(args.source_root).resolve() if args.source_root else None
+        metrics = run_benchmark(kb_dir, source_root)
+        print(json.dumps(metrics, indent=2, ensure_ascii=False))
+        return
+
+    # ── --build-index mode ────────────────────────────────────────────────────
+    if args.build_index:
+        nodes_path = Path(args.build_index).resolve()
+        if not nodes_path.exists():
+            print(f'Error: nodes file "{nodes_path}" does not exist', file=sys.stderr)
+            sys.exit(1)
+        index = build_file_index(nodes_path)
+        out_path = nodes_path.parent / 'file-index.json'
+        out_path.write_text(json.dumps(index, indent=2, ensure_ascii=False), encoding='utf-8')
+        print(
+            f'file-index.json written: {len(index)} files, '
+            f'{sum(len(v) for v in index.values())} node references → {out_path}',
+            file=sys.stderr,
+        )
+        return
+
+    if not args.root:
+        parser.error('root is required unless --build-index or --benchmark is used')
 
     root = Path(args.root).resolve()
     if not root.exists():

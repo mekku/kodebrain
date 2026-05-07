@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "kodebrain"
-version = "0.4.1"
+version = "0.4.2"
 description = "Living knowledge map for codebases — install agent instructions across AI platforms"
 readme = "README.md"
 license = { text = "MIT" }

@@ -443,6 +443,13 @@ def harvest(
 
 # ── File-index builder ────────────────────────────────────────────────────────
 
+def _load_nodes(data) -> list[dict]:
+    """Accept both raw array and {"nodes": [...]} wrapper formats."""
+    if isinstance(data, dict) and 'nodes' in data:
+        return data['nodes']
+    return data
+
+
 def build_file_index(nodes_path: Path) -> dict[str, list[str]]:
     """
     Invert nodes.json source_files → file-index.json.
@@ -450,7 +457,7 @@ def build_file_index(nodes_path: Path) -> dict[str, list[str]]:
     For every node that lists source_files, adds node_id to the index entry
     for each file.  Files not referenced by any node get an empty list.
     """
-    nodes = json.loads(nodes_path.read_text(encoding='utf-8'))
+    nodes = _load_nodes(json.loads(nodes_path.read_text(encoding='utf-8')))
     index: dict[str, list[str]] = {}
     for node in nodes:
         node_id = node.get('id', '')
@@ -474,8 +481,9 @@ def run_benchmark(kb_project_dir: Path, source_root: Path | None = None) -> dict
     reports_dir = kb_project_dir / 'reports'
 
     # Load graph files
-    nodes: list[dict] = json.loads((graph_dir / 'nodes.json').read_text())
-    edges: list[dict] = json.loads((graph_dir / 'edges.json').read_text())
+    nodes: list[dict] = _load_nodes(json.loads((graph_dir / 'nodes.json').read_text()))
+    edges_raw = json.loads((graph_dir / 'edges.json').read_text())
+    edges: list[dict] = edges_raw.get('edges', edges_raw) if isinstance(edges_raw, dict) else edges_raw
     file_index: dict[str, list[str]] = json.loads((graph_dir / 'file-index.json').read_text())
     file_hashes: dict[str, str] = json.loads((graph_dir / 'file-hashes.json').read_text())
 
