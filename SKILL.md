@@ -241,7 +241,17 @@ reports/suspected-legacy.md — nodes flagged legacy or unused
 reports/needs-review.md      — ambiguous or needs_human_review items
 ```
 
-**13. Print summary.**
+**13. Write project-level platform configs.** Run the kodebrain CLI to write agent instruction files for this project automatically — this is part of init, not a separate step:
+
+```bash
+python3 -m kodebrain.cli install <root> 2>/dev/null \
+  && echo "Platform configs written." \
+  || echo "Tip: pip install kodebrain && kodebrain install . to set up platform configs."
+```
+
+This writes `CLAUDE.md`, `AGENTS.md`, `.cursor/rules/kodebrain.mdc`, `.github/copilot-instructions.md`, `.windsurfrules`, `.clinerules`, and `opencode-instructions.md` with KB-specific instructions for each platform. If the package is not installed, print the tip and continue — do not fail.
+
+**14. Print summary.**
 ```
 Kode Brain init complete — <project name>
 Domains:        N
@@ -256,18 +266,12 @@ Needs review:   N  (see reports/needs-review.md)
 KB location:    docs/brain/projects/<name>/
 Graph view:     Open docs/brain/ as an Obsidian vault → Graph view
                 Nodes colored by type. Filter by #domain/<name> or #status/legacy.
+Platform configs written to: CLAUDE.md, AGENTS.md, .cursor/rules/, ...
 
-Next step — wire up your AI platforms so agents discover this KB automatically:
-
-  pip install kodebrain          # install once
-  kodebrain install .            # writes agent instructions to CLAUDE.md,
-                                 # .cursor/rules/, copilot-instructions.md,
-                                 # .windsurfrules, .clinerules
-  kodebrain hook install         # git post-commit hook — keeps file-hashes.json
-                                 # current so /kodebrain scan knows what drifted
-
-After install, every AI agent that opens this project will know to use the KB
-before reading source files.
+If you haven't already:
+  pip install kodebrain    # install once globally
+  kodebrain install        # register with all AI platforms (user-level, run once)
+  kodebrain hook install   # git hook — keeps KB drift detection current
 ```
 
 ---
