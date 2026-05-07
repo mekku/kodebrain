@@ -1,196 +1,113 @@
 """
-Write/remove Kode Brain agent instruction blocks in platform config files.
+kodebrain platform install/uninstall.
 
-Two install modes:
-  project-level  kodebrain install .        writes to project root config files
-  user-level     kodebrain install          writes to global user config dirs
+Two levels:
 
-Each block is tagged for idempotent update and clean removal:
-  <!-- kodebrain:start -->
-  ...instructions...
-  <!-- kodebrain:end -->
+  Global (skill install) — `kodebrain install`
+    Claude Code : copies SKILL.md + scripts/ → ~/.claude/skills/kodebrain/
+                  writes ## Kode Brain to ~/.claude/CLAUDE.md
+    Cursor      : writes rule → ~/.cursor/rules/kodebrain.mdc
+    Windsurf    : writes rule → ~/.windsurf/rules/kodebrain.mdc
+    Cline       : writes rule → ~/.clinerules
+    Codex CLI   : writes rule → ~/.codex/AGENTS.md
+    OpenCode    : writes agent → ~/.config/opencode/agents/kodebrain.md
+
+  Project (config install) — `kodebrain <platform> install [path]`
+    Claude Code : writes ## Kode Brain to ./CLAUDE.md
+    Cursor      : writes rule to ./.cursor/rules/kodebrain.mdc
+    Copilot     : writes rule to ./.github/copilot-instructions.md
+    Windsurf    : writes rule to ./.windsurfrules
+    Cline       : writes rule to ./.clinerules
+    Codex CLI   : writes rule to ./AGENTS.md
+    OpenCode    : writes rule to ./opencode-instructions.md
 """
 
 from __future__ import annotations
 import re
+import shutil
 from pathlib import Path
 
-BLOCK_START = "<!-- kodebrain:start -->"
-BLOCK_END = "<!-- kodebrain:end -->"
-_BLOCK_RE = re.compile(
-    r"\n?" + re.escape(BLOCK_START) + r".*?" + re.escape(BLOCK_END) + r"\n?",
+# ---------------------------------------------------------------------------
+# Skill bundle path (installed alongside this module)
+# ---------------------------------------------------------------------------
+
+SKILL_DIR = Path(__file__).parent / "skill"
+
+# ---------------------------------------------------------------------------
+# Section markers — use heading-based markers like graphify (## Kode Brain)
+# so the section is human-readable and platform-agnostic.
+# ---------------------------------------------------------------------------
+
+_SECTION_HEADER = "## Kode Brain"
+_SECTION_RE = re.compile(
+    r"\n*" + re.escape(_SECTION_HEADER) + r"[^\n]*\n.*?(?=\n## |\Z)",
     re.DOTALL,
 )
 
 # ---------------------------------------------------------------------------
-# Platform definitions — project level
+# Block content
 # ---------------------------------------------------------------------------
 
-PROJECT_PLATFORMS = {
-    "claude": {
-        "file": "CLAUDE.md",
-        "label": "Claude Code",
-    },
-    "cursor": {
-        "file": ".cursor/rules/kodebrain.mdc",
-        "label": "Cursor",
-    },
-    "copilot": {
-        "file": ".github/copilot-instructions.md",
-        "label": "GitHub Copilot",
-    },
-    "windsurf": {
-        "file": ".windsurfrules",
-        "label": "Windsurf",
-    },
-    "cline": {
-        "file": ".clinerules",
-        "label": "Cline",
-    },
-    "codex": {
-        "file": "AGENTS.md",
-        "label": "OpenAI Codex CLI",
-    },
-    "opencode": {
-        # OpenCode reads instructions from paths listed in opencode.jsonc.
-        # We write the file here; a note is printed telling the user to register it.
-        "file": "opencode-instructions.md",
-        "label": "OpenCode",
-        "note": (
-            "Add to opencode.jsonc:\n"
-            '  "instructions": ["opencode-instructions.md"]'
-        ),
-    },
-}
+def _claude_project_block(name: str) -> str:
+    return f"""{_SECTION_HEADER}
 
-# User-level global config paths (relative to $HOME).
-# Copilot excluded — no user-level global config.
-# OpenCode user agents live in ~/.config/opencode/agents/ as individual .md files.
-USER_PLATFORMS = {
-    "claude": {
-        "file": ".claude/CLAUDE.md",
-        "label": "Claude Code (global)",
-    },
-    "cursor": {
-        "file": ".cursor/rules/kodebrain.mdc",
-        "label": "Cursor (global)",
-    },
-    "windsurf": {
-        "file": ".windsurf/rules/kodebrain.mdc",
-        "label": "Windsurf (global)",
-    },
-    "cline": {
-        "file": ".clinerules",
-        "label": "Cline (global)",
-    },
-    "codex": {
-        "file": ".codex/AGENTS.md",
-        "label": "OpenAI Codex CLI (global)",
-    },
-    "opencode": {
-        "file": ".config/opencode/agents/kodebrain.md",
-        "label": "OpenCode (global)",
-    },
-}
-
-# ---------------------------------------------------------------------------
-# Block content — project level (project name is known)
-# ---------------------------------------------------------------------------
-
-def _project_claude_block(name: str) -> str:
-    return f"""{BLOCK_START}
-## Kode Brain — Knowledge Base
-
-This project has a structured knowledge map at `docs/brain/projects/{name}/`.
+This project has a Kode Brain knowledge map at `docs/brain/projects/{name}/`.
 
 **Session start:** Run `/kodebrain reading-pack "<task>"` before touching any code.
-It returns the relevant domain pages, source file hints, and active warnings — 3–25× cheaper than navigating source files cold.
+It returns the relevant domain pages, source hints, and active warnings — 3–25× cheaper than reading source files cold.
 
-**After editing source files:** Run `/kodebrain update --files <f1> <f2>` to keep the KB current.
-Subsequent queries return fresh data, not pre-edit state.
+**After editing files:** Run `/kodebrain update --files <f1> <f2>` to keep the KB current.
 
 **For questions:** Run `/kodebrain query "<question>"` instead of reading raw source files.
 
 **KB-first rule:** Use KB pages as primary source of truth.
-Read source files directly only when making a targeted edit or when a node is `confidence: stale`.
+Read source files directly only for targeted edits or when a node is `confidence: stale`.
 
-KB location:  `docs/brain/projects/{name}/`
-Graph view:   Open `docs/brain/` as an Obsidian vault.
-{BLOCK_END}"""
+KB: `docs/brain/projects/{name}/` — open `docs/brain/` in Obsidian for graph view."""
 
 
-def _project_generic_block(name: str) -> str:
-    return f"""{BLOCK_START}
-## Kode Brain — Knowledge Base
-
-This project has a structured knowledge map at `docs/brain/projects/{name}/`.
-
-**Before starting any task:**
-1. Read `docs/brain/projects/{name}/{name}.md` — project hub with all domains.
-2. Read the domain hub(s) for areas you'll touch: `docs/brain/projects/{name}/domains/<domain>/<domain>.md`.
-3. Check `docs/brain/projects/{name}/reports/reading-packs/` for a pre-built context pack matching your task.
-
-**KB-first rule:** Use KB pages as primary source of truth.
-Read source files directly only for targeted edits or when a page shows `confidence: stale`.
-
-**After editing source files:**
-The KB may drift from source. Check `docs/brain/projects/{name}/graph/file-hashes.json`
-to identify which files changed. Run `/kodebrain scan` in Claude Code to refresh the KB.
-
-KB location:  `docs/brain/projects/{name}/`
-{BLOCK_END}"""
-
-
-# ---------------------------------------------------------------------------
-# Block content — user level (no project name, detects KB dynamically)
-# ---------------------------------------------------------------------------
-
-_USER_CLAUDE_BLOCK = f"""{BLOCK_START}
-## Kode Brain
+def _claude_global_block() -> str:
+    return f"""{_SECTION_HEADER}
 
 If the current project has `docs/brain/projects/`, it has a Kode Brain knowledge map.
-Use it before reading source files — it's 3–25× cheaper per query.
+Use `/kodebrain reading-pack "<task>"` before reading source files — 3–25× cheaper per query.
+After editing files, run `/kodebrain update --files <changed>` to keep the KB current.
+For questions, run `/kodebrain query "<question>"` before opening source files."""
 
-**Session start:** Check for `docs/brain/projects/` and run `/kodebrain reading-pack "<task>"`.
-**After editing files:** Run `/kodebrain update --files <changed-files>`.
-**For questions:** Run `/kodebrain query "<question>"` before opening source files.
-**KB-first rule:** Read source files directly only for targeted edits or when a node is `confidence: stale`.
-{BLOCK_END}"""
 
-_USER_GENERIC_BLOCK = f"""{BLOCK_START}
-## Kode Brain
+def _generic_project_block(name: str) -> str:
+    return f"""{_SECTION_HEADER}
+
+This project has a Kode Brain knowledge map at `docs/brain/projects/{name}/`.
+
+Before starting: read `docs/brain/projects/{name}/{name}.md` (project hub) and the
+relevant domain pages under `docs/brain/projects/{name}/domains/`.
+Check `docs/brain/projects/{name}/reports/reading-packs/` for a pre-built context pack.
+
+KB-first rule: use KB pages as primary source of truth before reading source files.
+After editing, note that KB may drift — run `/kodebrain scan` in Claude Code to refresh."""
+
+
+def _generic_global_block() -> str:
+    return f"""{_SECTION_HEADER}
 
 If the current project has `docs/brain/projects/`, it has a Kode Brain knowledge map.
-Use it before reading source files.
-
-**Before starting:** Check for `docs/brain/projects/*/` and read the project hub and relevant domain pages.
-**Check for reading packs:** `docs/brain/projects/*/reports/reading-packs/` may have a pre-built context pack.
-**KB-first rule:** Use KB pages as primary source of truth before reading source files.
-{BLOCK_END}"""
-
-
-def _make_project_block(platform: str, name: str) -> str:
-    if platform == "claude":
-        return _project_claude_block(name)
-    return _project_generic_block(name)
-
-
-def _make_user_block(platform: str) -> str:
-    if platform == "claude":
-        return _USER_CLAUDE_BLOCK
-    return _USER_GENERIC_BLOCK
+Before starting, read the project hub and relevant domain pages in `docs/brain/projects/`.
+Check `docs/brain/projects/*/reports/reading-packs/` for pre-built context packs.
+KB-first rule: use KB pages as primary source of truth before reading source files."""
 
 
 # ---------------------------------------------------------------------------
-# Shared helpers
+# Shared file helpers
 # ---------------------------------------------------------------------------
 
-def _write_block(target: Path, block: str) -> None:
+def _write_section(target: Path, block: str) -> None:
+    """Append or replace the ## Kode Brain section in target file."""
     target.parent.mkdir(parents=True, exist_ok=True)
     existing = target.read_text(encoding="utf-8") if target.exists() else ""
 
-    if BLOCK_START in existing:
-        new_content = _BLOCK_RE.sub("", existing).rstrip("\n") + "\n\n" + block + "\n"
+    if _SECTION_HEADER in existing:
+        new_content = _SECTION_RE.sub("", existing).rstrip("\n") + "\n\n" + block + "\n"
     elif existing.strip():
         new_content = existing.rstrip("\n") + "\n\n" + block + "\n"
     else:
@@ -199,13 +116,14 @@ def _write_block(target: Path, block: str) -> None:
     target.write_text(new_content, encoding="utf-8")
 
 
-def _remove_block(target: Path) -> bool:
+def _remove_section(target: Path) -> bool:
+    """Remove the ## Kode Brain section. Returns True if anything changed."""
     if not target.exists():
         return False
     original = target.read_text(encoding="utf-8")
-    if BLOCK_START not in original:
+    if _SECTION_HEADER not in original:
         return False
-    cleaned = _BLOCK_RE.sub("", original).rstrip("\n")
+    cleaned = _SECTION_RE.sub("", original).rstrip("\n")
     if cleaned:
         target.write_text(cleaned + "\n", encoding="utf-8")
     else:
@@ -229,12 +147,124 @@ def find_kb_name(root: Path) -> str | None:
 
 
 # ---------------------------------------------------------------------------
-# Project-level install / uninstall
+# Global skill install — copies SKILL.md + scripts to platform dirs
 # ---------------------------------------------------------------------------
 
-def install_project(root: Path, platforms: list[str]) -> list[tuple[str, str | None]]:
-    """Write project-specific KB blocks.
-    Returns list of (relative_path, note_or_None) tuples."""
+def install_global(platforms: list[str]) -> list[tuple[str, str]]:
+    """
+    Install skill/rules globally for each platform.
+    Returns list of (description, path) tuples.
+    """
+    home = Path.home()
+    results: list[tuple[str, str]] = []
+
+    for platform in platforms:
+        if platform == "claude":
+            # Copy skill bundle to ~/.claude/skills/kodebrain/
+            dest = home / ".claude" / "skills" / "kodebrain"
+            if dest.is_symlink():
+                dest.unlink()
+            elif dest.exists():
+                shutil.rmtree(dest)
+            shutil.copytree(SKILL_DIR, dest)
+            results.append(("skill installed", str(dest)))
+
+            # Write global instructions to ~/.claude/CLAUDE.md
+            global_md = home / ".claude" / "CLAUDE.md"
+            _write_section(global_md, _claude_global_block())
+            results.append(("global config", str(global_md)))
+
+        elif platform == "cursor":
+            target = home / ".cursor" / "rules" / "kodebrain.mdc"
+            _write_section(target, _generic_global_block())
+            results.append(("global rule", str(target)))
+
+        elif platform == "windsurf":
+            target = home / ".windsurf" / "rules" / "kodebrain.mdc"
+            _write_section(target, _generic_global_block())
+            results.append(("global rule", str(target)))
+
+        elif platform == "cline":
+            target = home / ".clinerules"
+            _write_section(target, _generic_global_block())
+            results.append(("global rule", str(target)))
+
+        elif platform == "codex":
+            target = home / ".codex" / "AGENTS.md"
+            _write_section(target, _generic_global_block())
+            results.append(("global rule", str(target)))
+
+        elif platform == "opencode":
+            target = home / ".config" / "opencode" / "agents" / "kodebrain.md"
+            _write_section(target, _generic_global_block())
+            results.append(("global agent", str(target)))
+
+    return results
+
+
+def uninstall_global(platforms: list[str]) -> list[str]:
+    """Remove global skill/rules. Returns list of paths changed."""
+    home = Path.home()
+    changed: list[str] = []
+
+    for platform in platforms:
+        if platform == "claude":
+            skill_dir = home / ".claude" / "skills" / "kodebrain"
+            if skill_dir.exists():
+                shutil.rmtree(skill_dir)
+                changed.append(str(skill_dir))
+            global_md = home / ".claude" / "CLAUDE.md"
+            if _remove_section(global_md):
+                changed.append(str(global_md))
+
+        elif platform == "cursor":
+            if _remove_section(home / ".cursor" / "rules" / "kodebrain.mdc"):
+                changed.append(str(home / ".cursor" / "rules" / "kodebrain.mdc"))
+
+        elif platform == "windsurf":
+            if _remove_section(home / ".windsurf" / "rules" / "kodebrain.mdc"):
+                changed.append(str(home / ".windsurf" / "rules" / "kodebrain.mdc"))
+
+        elif platform == "cline":
+            if _remove_section(home / ".clinerules"):
+                changed.append(str(home / ".clinerules"))
+
+        elif platform == "codex":
+            if _remove_section(home / ".codex" / "AGENTS.md"):
+                changed.append(str(home / ".codex" / "AGENTS.md"))
+
+        elif platform == "opencode":
+            if _remove_section(home / ".config" / "opencode" / "agents" / "kodebrain.md"):
+                changed.append(str(home / ".config" / "opencode" / "agents" / "kodebrain.md"))
+
+    return changed
+
+
+# ---------------------------------------------------------------------------
+# Project config install — writes platform section to project config files
+# ---------------------------------------------------------------------------
+
+_PROJECT_CONFIGS = {
+    "claude":    ("CLAUDE.md",                        _claude_project_block),
+    "cursor":    (".cursor/rules/kodebrain.mdc",      _generic_project_block),
+    "copilot":   (".github/copilot-instructions.md",  _generic_project_block),
+    "windsurf":  (".windsurfrules",                   _generic_project_block),
+    "cline":     (".clinerules",                      _generic_project_block),
+    "codex":     ("AGENTS.md",                        _generic_project_block),
+    "opencode":  ("opencode-instructions.md",         _generic_project_block),
+}
+
+_OPENCODE_NOTE = (
+    "Add to opencode.jsonc:\n"
+    '  "instructions": ["opencode-instructions.md"]'
+)
+
+
+def install_project(root: Path, platform: str) -> tuple[str, str | None]:
+    """
+    Write project-level KB config for one platform.
+    Returns (relative_path, optional_note).
+    """
     name = find_kb_name(root)
     if name is None:
         raise RuntimeError(
@@ -242,52 +272,17 @@ def install_project(root: Path, platforms: list[str]) -> list[tuple[str, str | N
             "Run /kodebrain init first."
         )
 
-    written: list[tuple[str, str | None]] = []
-    for platform in platforms:
-        cfg = PROJECT_PLATFORMS[platform]
-        target = root / cfg["file"]
-        _write_block(target, _make_project_block(platform, name))
-        written.append((str(target.relative_to(root)), cfg.get("note")))
-
-    return written
+    rel_path, block_fn = _PROJECT_CONFIGS[platform]
+    target = root / rel_path
+    _write_section(target, block_fn(name))
+    note = _OPENCODE_NOTE if platform == "opencode" else None
+    return str(target.relative_to(root)), note
 
 
-def uninstall_project(root: Path) -> list[str]:
-    """Remove project KB blocks. Returns list of relative paths changed."""
-    changed: list[str] = []
-    for cfg in PROJECT_PLATFORMS.values():
-        target = root / cfg["file"]
-        if _remove_block(target):
-            changed.append(str(target.relative_to(root)))
-    return changed
-
-
-# ---------------------------------------------------------------------------
-# User-level install / uninstall
-# ---------------------------------------------------------------------------
-
-def install_user(platforms: list[str]) -> list[str]:
-    """Write user-level KB blocks to global config dirs. Returns list of absolute paths written."""
-    home = Path.home()
-    written: list[str] = []
-
-    for platform in platforms:
-        if platform not in USER_PLATFORMS:
-            continue  # e.g. copilot has no user-level config
-        cfg = USER_PLATFORMS[platform]
-        target = home / cfg["file"]
-        _write_block(target, _make_user_block(platform))
-        written.append(str(target))
-
-    return written
-
-
-def uninstall_user() -> list[str]:
-    """Remove user-level KB blocks. Returns list of absolute paths changed."""
-    home = Path.home()
-    changed: list[str] = []
-    for cfg in USER_PLATFORMS.values():
-        target = home / cfg["file"]
-        if _remove_block(target):
-            changed.append(str(target))
-    return changed
+def uninstall_project(root: Path, platform: str) -> str | None:
+    """Remove project-level KB config for one platform. Returns path if changed."""
+    if platform not in _PROJECT_CONFIGS:
+        return None
+    rel_path, _ = _PROJECT_CONFIGS[platform]
+    target = root / rel_path
+    return str(target.relative_to(root)) if _remove_section(target) else None

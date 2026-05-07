@@ -1,15 +1,23 @@
 """
-kodebrain CLI — install agent instructions and git hooks.
+kodebrain CLI — install Kode Brain skill and project configs across AI platforms.
 
 Usage:
-  kodebrain install                          # user-level: global config dirs (~/.claude/CLAUDE.md etc.)
-  kodebrain install <path>                   # project-level: writes to project config files
-  kodebrain install [path] --platform <p>    # specific platform only
-  kodebrain uninstall                        # remove user-level blocks
-  kodebrain uninstall <path>                 # remove project-level blocks
-  kodebrain hook install [path]
+  kodebrain install [--platform all|claude|cursor|windsurf|cline|codex|opencode]
+  kodebrain uninstall [--platform ...]
+
+  kodebrain claude   install [path]
+  kodebrain cursor   install [path]
+  kodebrain copilot  install [path]
+  kodebrain windsurf install [path]
+  kodebrain cline    install [path]
+  kodebrain codex    install [path]
+  kodebrain opencode install [path]
+
+  kodebrain <platform> uninstall [path]
+
+  kodebrain hook install   [path]
   kodebrain hook uninstall [path]
-  kodebrain hook status [path]
+  kodebrain hook status    [path]
 """
 
 from __future__ import annotations
@@ -18,90 +26,69 @@ import sys
 from pathlib import Path
 
 from kodebrain.install import (
-    PROJECT_PLATFORMS,
-    USER_PLATFORMS,
+    install_global,
+    uninstall_global,
     install_project,
-    install_user,
     uninstall_project,
-    uninstall_user,
 )
 from kodebrain import hook as _hook
 
-ALL_PROJECT_PLATFORMS = list(PROJECT_PLATFORMS.keys())  # claude cursor copilot windsurf cline codex opencode
-ALL_USER_PLATFORMS = list(USER_PLATFORMS.keys())        # claude cursor windsurf cline codex opencode
+GLOBAL_PLATFORMS = ["claude", "cursor", "windsurf", "cline", "codex", "opencode"]
+PROJECT_PLATFORMS = ["claude", "cursor", "copilot", "windsurf", "cline", "codex", "opencode"]
 
 
-def cmd_install(args: argparse.Namespace) -> int:
-    user_mode = args.path is None
-
-    if user_mode:
-        platforms = ALL_USER_PLATFORMS if args.platform == "all" else [args.platform]
-        # filter out platforms not supported at user level
-        platforms = [p for p in platforms if p in USER_PLATFORMS]
-        written = install_user(platforms)
-        print("Kode Brain installed (user-level)")
-        for f in written:
-            label = USER_PLATFORMS.get(
-                next((p for p in USER_PLATFORMS if str(Path.home() / USER_PLATFORMS[p]["file"]) == f), ""),
-                {},
-            ).get("label", f)
-            print(f"  ✓ {f}  ({label})")
-        print()
-        print("Every project you open will now be checked for a Kode Brain KB.")
-    else:
-        root = Path(args.path).resolve()
-        platforms = ALL_PROJECT_PLATFORMS if args.platform == "all" else [args.platform]
-        try:
-            written = install_project(root, platforms)
-        except RuntimeError as e:
-            print(f"error: {e}", file=sys.stderr)
-            return 1
-        print(f"Kode Brain installed in {root.name}/")
-        for f, note in written:
-            label = next(
-                (PROJECT_PLATFORMS[p]["label"] for p in PROJECT_PLATFORMS
-                 if PROJECT_PLATFORMS[p]["file"] == f),
-                f,
-            )
-            print(f"  ✓ {f}  ({label})")
-            if note:
-                for line in note.splitlines():
-                    print(f"    {line}")
-
+def cmd_global_install(args: argparse.Namespace) -> int:
+    platforms = GLOBAL_PLATFORMS if args.platform == "all" else [args.platform]
+    results = install_global(platforms)
+    print("Kode Brain installed (global)")
+    for label, path in results:
+        print(f"  ✓ {path}  ({label})")
+    print()
+    print("Skill installed. Open a project and run /kodebrain init to build a knowledge map.")
     return 0
 
 
-def cmd_uninstall(args: argparse.Namespace) -> int:
-    user_mode = args.path is None
+def cmd_global_uninstall(args: argparse.Namespace) -> int:
+    platforms = GLOBAL_PLATFORMS if args.platform == "all" else [args.platform]
+    changed = uninstall_global(platforms)
+    if not changed:
+        print("No global Kode Brain skill found — nothing to remove.")
+        return 0
+    print("Kode Brain removed (global)")
+    for path in changed:
+        print(f"  ✓ {path}")
+    return 0
 
-    if user_mode:
-        changed = uninstall_user()
-        if not changed:
-            print("No user-level Kode Brain blocks found — nothing to remove.")
-            return 0
-        print("Kode Brain removed (user-level)")
-        for f in changed:
-            print(f"  ✓ {f}")
-    else:
-        root = Path(args.path).resolve()
-        changed = uninstall_project(root)
-        if not changed:
-            print("No Kode Brain blocks found — nothing to remove.")
-            return 0
-        print(f"Kode Brain removed from {root.name}/")
-        for f in changed:
-            print(f"  ✓ {f}")
 
+def cmd_project_install(platform: str, args: argparse.Namespace) -> int:
+    root = Path(args.path).resolve()
+    try:
+        rel_path, note = install_project(root, platform)
+    except RuntimeError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    print(f"  ✓ {rel_path}")
+    if note:
+        for line in note.splitlines():
+            print(f"    {line}")
+    return 0
+
+
+def cmd_project_uninstall(platform: str, args: argparse.Namespace) -> int:
+    root = Path(args.path).resolve()
+    result = uninstall_project(root, platform)
+    if result is None:
+        print("No Kode Brain block found — nothing to remove.")
+        return 0
+    print(f"  ✓ {result}")
     return 0
 
 
 def cmd_hook(args: argparse.Namespace) -> int:
     root = Path(args.path).resolve()
-
     if not (root / ".git").is_dir():
         print(f"error: {root} is not a git repository.", file=sys.stderr)
         return 1
-
     if args.hook_cmd == "install":
         path = _hook.install(root)
         print(f"Hook installed: {path}")
@@ -117,41 +104,45 @@ def cmd_hook(args: argparse.Namespace) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="kodebrain",
-        description="Kode Brain — install agent instructions across AI platforms.",
+        description="Kode Brain — install AI skill and project configs across platforms.",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    # install
+    # Global: kodebrain install / uninstall
     p_install = sub.add_parser(
         "install",
-        help="Write KB instructions. No path = user-level (global). Path = project-level.",
-    )
-    p_install.add_argument(
-        "path",
-        nargs="?",
-        default=None,
-        help="Project root for project-level install. Omit for user-level (global).",
+        help="Install Kode Brain skill globally to platform dirs.",
     )
     p_install.add_argument(
         "--platform",
-        choices=["all"] + ALL_PROJECT_PLATFORMS,
+        choices=["all"] + GLOBAL_PLATFORMS,
         default="all",
         help="Target platform (default: all)",
     )
 
-    # uninstall
     p_uninstall = sub.add_parser(
         "uninstall",
-        help="Remove KB blocks. No path = user-level. Path = project-level.",
+        help="Remove globally installed Kode Brain skill.",
     )
     p_uninstall.add_argument(
-        "path",
-        nargs="?",
-        default=None,
-        help="Project root for project-level uninstall. Omit for user-level.",
+        "--platform",
+        choices=["all"] + GLOBAL_PLATFORMS,
+        default="all",
+        help="Target platform (default: all)",
     )
 
-    # hook
+    # Per-platform project sub-commands
+    for platform in PROJECT_PLATFORMS:
+        pp = sub.add_parser(platform, help=f"Manage Kode Brain project config for {platform}.")
+        pp_sub = pp.add_subparsers(dest=f"{platform}_cmd", required=True)
+
+        pi = pp_sub.add_parser("install", help=f"Write ## Kode Brain to {platform} project config.")
+        pi.add_argument("path", nargs="?", default=".", help="Project root (default: .)")
+
+        pu = pp_sub.add_parser("uninstall", help=f"Remove ## Kode Brain from {platform} project config.")
+        pu.add_argument("path", nargs="?", default=".", help="Project root (default: .)")
+
+    # Hook
     p_hook = sub.add_parser("hook", help="Manage the git post-commit hook.")
     hook_sub = p_hook.add_subparsers(dest="hook_cmd", required=True)
     for hcmd in ("install", "uninstall", "status"):
@@ -161,9 +152,16 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command == "install":
-        sys.exit(cmd_install(args))
+        sys.exit(cmd_global_install(args))
     elif args.command == "uninstall":
-        sys.exit(cmd_uninstall(args))
+        sys.exit(cmd_global_uninstall(args))
+    elif args.command in PROJECT_PLATFORMS:
+        platform = args.command
+        sub_cmd = getattr(args, f"{platform}_cmd")
+        if sub_cmd == "install":
+            sys.exit(cmd_project_install(platform, args))
+        elif sub_cmd == "uninstall":
+            sys.exit(cmd_project_uninstall(platform, args))
     elif args.command == "hook":
         sys.exit(cmd_hook(args))
 
