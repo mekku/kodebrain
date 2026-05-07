@@ -103,88 +103,65 @@ tags:
 
 ## Harvest Phase
 
-The harvest phase extracts structured data from source files using deterministic shell commands. LLM never reads raw source files — it reads harvest briefs instead. This reduces init token cost by ~5–10x and makes update detection precise.
+The harvest phase extracts structured data from source files using a deterministic Python script. The LLM **never reads raw source files** — it reads the JSON output instead. This reduces init token cost by ~5–10x and makes update detection exact.
 
-### H1. Hash files
+### Running the script
 
 ```bash
-find <root>/src -type f \( -name "*.ts" -o -name "*.py" -o -name "*.go" \) | sort | \
-  while read f; do shasum -a 256 "$f"; done
+# Full harvest (init — all files)
+python3 <skill_base_dir>/scripts/harvest.py <root>
+
+# Incremental harvest (scan — dirty files only)
+python3 <skill_base_dir>/scripts/harvest.py <root> \
+  --hashes docs/brain/projects/<name>/graph/file-hashes.json
+
+# Targeted harvest (update — specific files only)
+python3 <skill_base_dir>/scripts/harvest.py <root> \
+  --files src/services/TaskService.ts src/api/tasks/tasks.controller.ts
 ```
 
-Compare against `graph/file-hashes.json` (load if it exists). Files whose hash differs are **dirty**. New files are also dirty. Save updated hashes to `graph/file-hashes.json` after all pages are written.
+`<skill_base_dir>` is the base directory shown at the top of the skill when invoked (e.g. `/Users/you/.claude/skills/kodebrain`).
 
-`file-hashes.json` format:
+### Output schema
+
 ```json
-{ "src/services/AuthService.ts": "abc123...", "src/models/Task.ts": "def456..." }
+{
+  "root": "/path/to/project",
+  "hashes": { "src/file.ts": "sha256hex..." },
+  "dirty": ["src/file.ts"],
+  "files": {
+    "src/file.ts": {
+      "path": "src/file.ts",
+      "exports": ["AuthService"],
+      "routes": ["loginRouter.post()"],
+      "imports": ["./UserRepository", "jsonwebtoken"],
+      "imported_by": ["src/api/auth/login.ts"],
+      "status_signals": [{"line": 3, "text": "// DEPRECATED"}],
+      "status": "deprecated",
+      "has_test": false,
+      "is_test": false
+    }
+  }
+}
 ```
 
-### H2. Extract exports
+**`dirty`** — files whose SHA-256 hash changed since `--hashes` was last saved (or all files on first run). Only dirty files appear in `files`. This is the only input needed for all init and update steps.
 
-```bash
-# TypeScript / JavaScript
-grep -rEn "^export (function|class|const|type|interface|enum|async function)" <root>/src \
-  --include="*.ts" --include="*.js"
+### Status classification (deterministic — no LLM judgment)
 
-# Python
-grep -rEn "^def |^class " <root>/src --include="*.py"
-
-# Go
-grep -rEn "^func [A-Z]" <root>/src --include="*.go"
-```
-
-### H3. Extract routes
-
-```bash
-# TypeScript — match only Router/app callers, not redis.get() etc.
-grep -rEn "\b(app|router|[A-Za-z]+[Rr]outer)\.(get|post|put|delete|patch)\s*\(" <root>/src \
-  --include="*.ts"
-
-# Python FastAPI / Flask
-grep -rEn "@(app|router)\.(get|post|put|delete|patch)" <root>/src --include="*.py"
-```
-
-### H4. Extract import graph
-
-```bash
-grep -rEn "^import |^from " <root>/src --include="*.ts" --include="*.py"
-```
-
-Post-process: build a reverse map — for each file, list which other files import it (importer list). A file with zero importers is a candidate for `suspected_unused`.
-
-### H5. Detect status signals
-
-```bash
-grep -rEn "@deprecated|// DEPRECATED|// deprecated|TODO.*(remov|migrat|deprecat)|FIXME" \
-  <root>/src --include="*.ts" --include="*.py"
-```
-
-**Deterministic classification rules** (no LLM judgment):
-
-| Signal | → Status |
+| Signal | → `status` |
 |---|---|
-| `@deprecated` or `// DEPRECATED` in file | `deprecated` |
-| Zero importers AND zero route refs | `suspected_unused` |
-| `TODO.*remov` or `TODO.*migrat` comment | `partially_migrated` |
-| Filename contains `V1`, `Old`, `Legacy`, `Backup` | `suspected_legacy` |
-| Same-base sibling exists with V2/new suffix | `partially_migrated` |
+| `@deprecated` / `// DEPRECATED` in file | `deprecated` |
+| `TODO.*(remov\|migrat\|replac)` comment | `partially_migrated` |
+| Filename stem matches V1/Old/Legacy/Backup | `suspected_legacy` |
+| Zero importers AND zero routes | `suspected_unused` |
+| File is a test file (`*.test.*`, `tests/`) | `active` (not unused) |
+| File is an entry point (`server`, `main`, `index`) with no importers | `active` (not unused) |
 | None of above | `active` |
 
-### H6. Build harvest briefs
+### What Claude does with the output
 
-Combine H2–H5 results per file into a ~150-token structured brief:
-
-```
-File: src/services/TaskService.ts
-Exports: createTask, updateTask, getTaskById, listTasks
-Routes: none
-Imports: TaskRepository, CacheService, NotificationService
-Imported by: tasks.controller.ts, admin.controller.ts
-Status signals: none
-Test file: src/services/TaskService.test.ts ✓
-```
-
-**LLM reads harvest briefs, not raw source files.** All narration (domain detection, capability naming, flow tracing, concept identification) uses briefs as input.
+Read the JSON, build harvest briefs mentally per file, then proceed to domain/capability/flow narration. Do not read any raw source files — the JSON contains all the signal needed.
 
 ---
 
@@ -196,7 +173,7 @@ Test file: src/services/TaskService.test.ts ✓
 
 **1. Confirm project root.** Look for `package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, `pom.xml`, or a `src/` directory. If none found, warn and ask for confirmation.
 
-**2. Run harvest phase.** Execute steps H1–H6 from the Harvest Phase section above. This produces: file hashes, export map, route map, import/importer map, status signals, and per-file harvest briefs. Do not read raw source files — all subsequent steps use harvest briefs.
+**2. Run harvest phase.** Run `python3 <skill_base_dir>/scripts/harvest.py <root>` (no `--hashes` flag on first init). Parse the JSON output. This produces: file hashes, export map, route map, import/importer map, status signals, and per-file briefs for every source file. Do not read raw source files — all subsequent steps use the JSON output.
 
 **3. Classify domains.** From harvest briefs: a domain candidate is a folder whose briefs collectively include a service export, a model/repository export, and at least one route reference. Name domains after the folder (title-cased). Always check for: Auth, User, Billing/Payment, Notification, Admin, Core/Shared. Flag anything unclusterable as `unmapped`.
 
@@ -264,16 +241,12 @@ Graph view:     Open docs/brain/ as an Obsidian vault → Graph view
 
 ### Steps
 
-1. Load `nodes.json`, `edges.json`, `file-index.json`, `file-hashes.json`.
-2. Re-run harvest step H1 on all source files. Compare new hashes against `file-hashes.json`:
-   - **Hash changed** → file is dirty
-   - **File not in file-hashes.json** → new file (dirty)
-   - **In file-hashes.json but not on disk** → deleted
-3. For dirty files: re-run H2–H6 on those files only to produce updated harvest briefs.
-4. For dirty files: look up node IDs in `file-index.json`. Re-narrate affected nodes from updated briefs. Set `confidence: source_supported`.
-5. For deleted files: mark all referenced nodes `confidence: stale`. Add to `reports/needs-review.md`.
-6. For new files with no existing node: run domain/capability detection from brief. Write new node if `source_supported`.
-7. Update `file-hashes.json` with new hashes. Update graph files. Print change summary: dirty/new/deleted file counts and affected node count.
+1. Load `nodes.json`, `edges.json`, `file-index.json`.
+2. Run `python3 <skill_base_dir>/scripts/harvest.py <root> --hashes graph/file-hashes.json`. The script compares SHA-256 hashes and returns only dirty/new files in `files`. Deleted files (in hashes but not on disk) are not in `hashes` output.
+3. For dirty files: look up node IDs in `file-index.json`. Re-narrate affected nodes from the JSON briefs. Set `confidence: source_supported`.
+4. For deleted files (in old hashes but absent from new `hashes`): mark all referenced nodes `confidence: stale`. Add to `reports/needs-review.md`.
+5. For new files (in `dirty` but not in `file-index.json`): run domain/capability detection from brief. Write new node if `source_supported`.
+6. Write updated `file-hashes.json` from the `hashes` field of the script output (merge with existing for unchanged files). Update graph files. Print change summary.
 
 ---
 
@@ -383,7 +356,7 @@ Graph view:     Open docs/brain/ as an Obsidian vault → Graph view
 1. Get changed files:
    - `--diff`: run `git diff --name-only HEAD`
    - `--files f1 f2 ...`: use provided list
-2. For each changed file: re-run harvest steps H2–H5 to produce an updated harvest brief. Compare new status signals against the existing node's `status` field.
+2. Run `python3 <skill_base_dir>/scripts/harvest.py <root> --files <f1> <f2> ...`. Parse the JSON briefs for each changed file. Compare new `status` field against the existing node's `status`.
 3. Load `file-index.json`. Find node IDs referencing each changed file.
 4. For each affected node, re-narrate from the updated harvest brief:
    - Behavior changed (new/removed exports or routes) → rewrite relevant page sections, set `confidence: source_supported`
