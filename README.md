@@ -46,11 +46,25 @@ This repository is currently at the **design phase**. Implementation comes after
 
 ## Installation
 
-The skill must be installed into Claude Code's skills directory:
-
 ```bash
-# From the repo root
-ln -s "$(pwd)" ~/.claude/skills/kodebrain
+pip install kodebrain
+kodebrain install        # installs skill + platform configs globally
 ```
 
-After symlinking, `SKILL.md` is discoverable by Claude Code and `/kodebrain` becomes available in any Claude Code session.
+`/kodebrain` is then available in every Claude Code session.
+
+### Developing the skill
+
+The skill definition lives in `kodebrain/skill/` — `SKILL.md` and `scripts/harvest.py`. To have changes take effect immediately without reinstalling:
+
+```bash
+# Symlink the skill dir directly (dev mode)
+ln -s "$(pwd)/kodebrain/skill" ~/.claude/skills/kodebrain
+```
+
+Or install the package in editable mode so `kodebrain install` always picks up local changes:
+
+```bash
+pip install -e .
+kodebrain install
+```

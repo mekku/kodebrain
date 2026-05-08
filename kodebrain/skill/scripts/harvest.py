@@ -418,7 +418,6 @@ def harvest(
                            '_test.go', '_test.py', '.test.tsx', '.spec.tsx')
         )
         files[rel] = {
-            'path': rel,
             'exports': data['exports'],
             'routes': data['routes'],
             'imports': data['imports'],

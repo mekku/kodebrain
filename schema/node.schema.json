@@ -107,6 +107,11 @@
       "format": "date",
       "description": "ISO 8601 date when a human last reviewed and confirmed this node."
     },
+    "severity": {
+      "type": "string",
+      "enum": ["low", "med", "high"],
+      "description": "Required on type=caveat nodes. Used by --benchmark to compute risk surface score. Do not omit — the script reads this field directly from nodes.json."
+    },
     "createdBy": {
       "type": "string",
       "enum": ["human", "knowledge_builder", "knowledge_architect", "knowledge_reviewer"],

@@ -3,3 +3,4 @@
 agents/tasks.md
 __pycache__/
 *.egg-info/
+dist

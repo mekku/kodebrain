@@ -146,7 +146,6 @@ python3 <skill_base_dir>/scripts/harvest.py <root> \
   "dirty": ["src/file.ts"],
   "files": {
     "src/file.ts": {
-      "path": "src/file.ts",
       "exports": ["AuthService"],
       "routes": ["loginRouter.post()"],
       "imports": ["./UserRepository", "jsonwebtoken"],
@@ -192,7 +191,7 @@ Read the JSON, build harvest briefs mentally per file, then proceed to domain/ca
 
 **3. Classify domains.** From harvest briefs: a domain candidate is a folder whose briefs collectively include a service export, a model/repository export, and at least one route reference. Name domains after the folder (title-cased). Always check for: Auth, User, Billing/Payment, Notification, Admin, Core/Shared. Flag anything unclusterable as `unmapped`.
 
-**4. Detect capabilities.** Per domain: derive from route patterns and service export names in briefs. Phrase as verb phrases: "Create order", "Send notification", "Validate user session". Aim for 5–10 per domain.
+**4. Detect and write capabilities.** Per domain: derive from route patterns and service export names in briefs. Phrase as verb phrases: "Create order", "Send notification", "Validate user session". Write one capability node for each distinct route group or service export cluster — minimum 3 per domain that has routes or service exports. **Do not defer writing — write each domain's capability nodes immediately after detecting them, before moving to the next domain.** An init that produces 0 capability nodes is incomplete regardless of context pressure.
 
 **5. Trace flows.** For the top 3–5 capabilities per domain, trace the runtime path using the import graph from H4: entry route → service methods → downstream imports → side effects (cache writes, queue, email). Use brief data only — do not read source files.
 
@@ -203,6 +202,8 @@ Read the JSON, build harvest briefs mentally per file, then proceed to domain/ca
 **8. Find entry points.** From route grep (H3) and import graph: identify `main.ts` `app.ts` `server.ts` `index.ts` or equivalent. Record in project hub.
 
 **9. Write pages.** For each `source_supported` node: generate using the matching template from `templates/`. For each `inferred` node: same but add the draft banner. Write to the correct path under `docs/brain/projects/<name>/`.
+
+  **Write in this order:** capability pages first (highest coverage impact), then model pages, then flow pages, then concept pages, then risk pages, then domain hub pages. For projects with more than 200 source files, process domain-by-domain: write all pages for domain A before starting domain B. Never defer capability pages to the end of the session — they are the primary driver of coverage score.
 
   File naming rules:
   - Domain hub: `domains/<slug>/<slug>.md` (e.g., `domains/auth/auth.md`) — enables `[[auth]]` links
@@ -478,13 +479,13 @@ Answer from KB pages. Read source files directly only when the KB reports `confi
    Output schema:
    ```json
    {
-     "coverage":        { "total_source_files": N, "mapped_files": N, "unmapped_files": N, "pct": N },
+     "coverage":        { "total_source_files": N, "mapped_files": N, "unmapped_files": N, "coverage_pct": N },
      "nodes":           { "total": N, "by_type": {...}, "by_status": {...}, "by_confidence": {...} },
      "edges":           { "total": N, "by_type": {...}, "cross_domain": N },
      "graph":           { "avg_degree": N, "orphan_count": N, "top_hubs": [{"id":..,"degree":..,"type":..}] },
-     "risk_surface":    { "risk_nodes": [...], "legacy_count": N, "needs_review_count": N, "suspected_legacy_count": N },
-     "scores":          { "coverage": N, "confidence": N, "connectedness": N, "risk_awareness": N, "overall": N },
-     "token_efficiency":{ "source_bytes": N, "kb_bytes": N, "source_tokens_est": N, "kb_tokens_est": N, "ratio": N }
+     "risk_surface":    { "risk_nodes": N, "risk_nodes_by_severity": {...}, "legacy_deprecated_nodes": N, "needs_review_items": N, "suspected_legacy_items": N },
+     "scores":          { "coverage": N, "confidence": N, "connectedness": N, "risk_awareness": N, "overall": N, "grade": "..." },
+     "token_efficiency":{ "kb_md_bytes": N, "kb_json_bytes": N, "kb_total_bytes": N, "kb_est_tokens": N, "source_bytes": N, "source_est_tokens": N, "compression_ratio": N }
    }
    ```
 
