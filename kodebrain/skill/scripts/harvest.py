@@ -467,6 +467,79 @@ def build_file_index(nodes_path: Path) -> dict[str, list[str]]:
     return index
 
 
+# ── Referential integrity (orphan-edge gate) ────────────────────────────────────
+
+class OrphanEdgeError(ValueError):
+    """Raised when a graph contains edges referencing non-existent node ids.
+
+    The graph (nodes.json / edges.json) is hand-written, so an edge can point at
+    a node id that was never created or was later renamed. Such a dangling
+    endpoint is silently miscounted by every traversal/degree/domain metric, so
+    it must be a hard validation failure — not a warning.
+    """
+
+
+def detect_orphan_edges(nodes: list[dict], edges: list[dict]) -> list[dict]:
+    """Find edges whose ``from`` or ``to`` references a node id absent from ``nodes``.
+
+    Referential-integrity check, the edge-level counterpart of the orphan-NODE
+    check below. Runs whenever a graph is validated (the ``--benchmark`` path).
+
+    @param nodes: node dicts, each with an ``id`` key.
+    @param edges: edge dicts, each with ``from`` and ``to`` keys.
+    @returns one descriptor per orphan edge —
+        ``{'from', 'to', 'type', 'missing': ['from'|'to', ...]}``. An empty list
+        means every edge endpoint resolves to a real node.
+    """
+    node_ids = {n['id'] for n in nodes}
+    orphans: list[dict] = []
+    for e in edges:
+        missing = [side for side in ('from', 'to') if e.get(side) not in node_ids]
+        if missing:
+            orphans.append({
+                'from': e.get('from'),
+                'to': e.get('to'),
+                'type': e.get('type'),
+                'missing': missing,
+            })
+    return orphans
+
+
+def _format_orphan_edges(orphans: list[dict]) -> str:
+    """Render orphan-edge descriptors as a multi-line, one-issue-per-line diagnostic.
+
+    @param orphans: descriptors from :func:`detect_orphan_edges`.
+    @returns a newline-joined string naming each edge and its missing node id.
+    """
+    lines: list[str] = []
+    for o in orphans:
+        for side in o['missing']:
+            lines.append(
+                f"  - edge ({o['from']}) --{o['type']}--> ({o['to']}): "
+                f"{side} id '{o[side]}' is not a node"
+            )
+    return '\n'.join(lines)
+
+
+def assert_no_orphan_edges(nodes: list[dict], edges: list[dict]) -> None:
+    """Fail graph validation if any edge references a non-existent node id.
+
+    Default-fail referential-integrity gate (strict; no warn-and-continue). The
+    error message lists every orphan edge and the exact missing id so the author
+    can repair ``edges.json`` directly.
+
+    @param nodes: node dicts with ``id`` keys.
+    @param edges: edge dicts with ``from``/``to`` keys.
+    @raises OrphanEdgeError: when one or more orphan edges are present.
+    """
+    orphans = detect_orphan_edges(nodes, edges)
+    if orphans:
+        raise OrphanEdgeError(
+            f'{len(orphans)} orphan edge(s) reference non-existent node ids:\n'
+            + _format_orphan_edges(orphans)
+        )
+
+
 # ── Benchmark ─────────────────────────────────────────────────────────────────
 
 def run_benchmark(kb_project_dir: Path, source_root: Path | None = None) -> dict:
@@ -483,6 +556,10 @@ def run_benchmark(kb_project_dir: Path, source_root: Path | None = None) -> dict
     nodes: list[dict] = _load_nodes(json.loads((graph_dir / 'nodes.json').read_text()))
     edges_raw = json.loads((graph_dir / 'edges.json').read_text())
     edges: list[dict] = edges_raw.get('edges', edges_raw) if isinstance(edges_raw, dict) else edges_raw
+
+    # ── Referential-integrity gate (fail-fast, before any further metric) ──────
+    assert_no_orphan_edges(nodes, edges)
+
     file_index: dict[str, list[str]] = json.loads((graph_dir / 'file-index.json').read_text())
     file_hashes: dict[str, str] = json.loads((graph_dir / 'file-hashes.json').read_text())
 
@@ -685,7 +762,11 @@ def main() -> None:
             print(f'Error: KB project dir "{kb_dir}" does not exist', file=sys.stderr)
             sys.exit(1)
         source_root = Path(args.source_root).resolve() if args.source_root else None
-        metrics = run_benchmark(kb_dir, source_root)
+        try:
+            metrics = run_benchmark(kb_dir, source_root)
+        except OrphanEdgeError as e:
+            print(f'Graph validation FAILED: {e}', file=sys.stderr)
+            sys.exit(1)
         print(json.dumps(metrics, indent=2, ensure_ascii=False))
         return
 
