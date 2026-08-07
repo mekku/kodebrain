@@ -6,18 +6,18 @@ owns:
   - validation.severity-model
   - validation.completion-state
   - validation.finding-model
+exports: {}
 ---
 
-# Onboard Completion Gate
+# Onboard Validation Gate — Severity, Completion, Finding Model
 
 Canonical owner for: validation severity model (ERROR/DRIFT/REVIEW), completion states (complete/complete_with_drift/needs_review/blocked), finding model.
 
-**Ownership routing (applied after approval):**
-- Validation gate process (when validation runs, onboard integration) → `workflow-model.md` (Workflow owns onboard processes)
-- `canonical_source` field semantics → `knowledge-model.md` (Knowledge owns node field semantics)
-- Canonical projection rules → `governance.md` (Governance owns authority rules)
-- Machine shape of `canonical_source` → `schema/node.schema.json` (Schema owns field contracts)
-- Severity model + completion states + finding model: this spec retains ownership
+**Routed to other canonical owners:**
+- Validation gate process + onboard integration → [`workflow-model`](workflow-model.md)
+- `canonical_source` field semantics + reference template → [`knowledge-model`](knowledge-model.md)
+- Canonical projection rules → [`governance`](governance.md)
+- Machine shape of `canonical_source` → `schema/node.schema.json`
 
 ---
 
@@ -35,35 +35,6 @@ The onboard process currently has no deterministic completion gate. Compiler war
 This spec defines a **deterministic validation gate** that runs after graph compilation. Onboard may not declare `complete` without passing it.
 
 ---
-
-## Validation Gate Process
-
-```
-Onboard → Generate KB → Compile Graph
-                              ↓
-                    ┌─── VALIDATION GATE ───┐
-                    │                        │
-                    │ 1. Referential integrity
-                    │ 2. Required artifact integrity
-                    │ 3. Provenance/confidence consistency
-                    │ 4. Intent-observed consistency
-                    │ 5. Canonical authority / projection integrity
-                    │ 6. Report consistency
-                    │                        │
-                    └───────────┬────────────┘
-                                ↓
-                      validation-result.json
-                                │
-                      ┌─────────┼─────────┐
-                      ▼         ▼         ▼
-                 drift.md   needs-    knowledge-
-                            review.md gaps.md
-                                │
-                                ▼
-                        completion_state
-```
-
-The gate is called by the onboard workflow after `compile_graph.py` and before declaring completion. It is a deterministic Python script: same KB → same result.
 
 ---
 
@@ -287,90 +258,6 @@ For the dogfood test case, the validator should detect:
 Reports are rendered from this file — the counts in `drift.md`, `needs-review.md`, and `knowledge-gaps.md` must match the finding counts in `validation-result.json`. The onboard summary reports `completion_state`, not a hardcoded "onboard complete."
 
 ---
-
-## `canonical_source` Field
-
-### Schema addition
-
-Added to `schema/node.schema.json`:
-
-```json
-"canonical_source": {
-  "type": "object",
-  "properties": {
-    "path": {
-      "type": "string",
-      "description": "Relative path from project root to the canonical definition"
-    },
-    "anchor": {
-      "type": "string",
-      "description": "Section anchor within the canonical document"
-    }
-  },
-  "required": ["path"]
-}
-```
-
-### Semantics
-
-- `knowledge_role: reference` — required when `canonical_source` is set. The page is a navigation/context projection of a canonical definition elsewhere. Normative questions route to `canonical_source`.
-- `knowledge_role: mixed` — permitted with `canonical_source` when the page contains both reference navigation AND original observed evidence not covered by the canonical source.
-- `knowledge_role: intent` — NOT permitted with `canonical_source`. Intent pages claim to own the concept; if a canonical source exists, intent is held there.
-
-### Template for reference pages
-
-Pages with `canonical_source` use a constrained structure:
-
-```markdown
-## Canonical Definition
-See: [canonical-source-path#anchor]
-
-## Project Context
-(How this concept manifests in this project specifically)
-
-## Relationships
-(Wiki-links to related nodes)
-
-## Evidence
-(Source files, runtime evidence where this concept is observed)
-```
-
-No `## How It Works`, `## Specification`, or enumerated contracts. The canonical source owns the definition.
-
----
-
-## Canonical Projection Rules
-
-Added to governance spec:
-
-**Projection rule:** A KB page whose content is primarily derived from a canonical source must:
-1. Declare `canonical_source` pointing to the canonical document
-2. Set `knowledge_role: reference`
-3. Use the reference page template (no redefined contracts)
-4. Add project-specific context, relationships, and evidence — these are the page's value-add
-
-**Anti-pattern (canonical duplication):**
-```
-canonical spec defines lifecycle states
-    ↓
-KB concept page copies the same state table
-    ↓
-page has knowledge_role: intent and no canonical_source
-    ↓
-One concept → two authoritative places
-```
-
-**Correct pattern (canonical projection):**
-```
-canonical spec defines lifecycle states
-    ↓
-KB concept page declares canonical_source
-    ↓
-page provides: project context, related nodes, source evidence
-    ↓
-Normative question → canonical source
-Navigation/context question → KB page
-```
 
 ---
 

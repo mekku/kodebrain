@@ -554,20 +554,15 @@ class TestRenderReports:
         kb_dir = tmp_path / "docs" / "brain" / "projects" / "test"
         (kb_dir / "reports").mkdir(parents=True)
 
-        result = {
-            "completion_state": "complete_with_drift",
-            "summary": {"total_findings": 2, "error_count": 0, "drift_count": 1, "review_count": 1},
-            "findings": [
-                {"id": "DRF-001", "check": "intent-observed-consistency", "severity": "DRIFT",
-                 "rule": "intent-observed-mismatch", "node": "test-page",
-                 "description": "Intent page has Runtime Path section"},
-                {"id": "REV-001", "check": "provenance-consistency", "severity": "REVIEW",
-                 "rule": "ambiguous-provenance", "node": "other-page",
-                 "description": "Provenance unclear"},
-            ],
-            "checks_run": {},
-        }
-        reports = mod.render_reports(result, kb_dir)
+        findings = [
+            {"id": "DRF-001", "check": "intent-observed-consistency", "severity": "DRIFT",
+             "rule": "intent-observed-mismatch", "node": "test-page",
+             "description": "Intent page has Runtime Path section"},
+            {"id": "REV-001", "check": "provenance-consistency", "severity": "REVIEW",
+             "rule": "ambiguous-provenance", "node": "other-page",
+             "description": "Provenance unclear"},
+        ]
+        reports = mod.render_reports_from_findings(findings)
         assert "drift.md" in reports
         assert "DRF-001" in reports["drift.md"]
         assert "intent-observed-mismatch" in reports["drift.md"]
@@ -577,21 +572,19 @@ class TestRenderReports:
     def test_empty_findings_produce_no_drift_no_review(self, tmp_path: Path) -> None:
         mod = _load_script(_VALIDATE_PATH)
         kb_dir = tmp_path / "docs" / "brain" / "projects" / "test"
-        reports = mod.render_reports({"findings": []}, kb_dir)
+        reports = mod.render_reports_from_findings([])
         assert "No drift detected" in reports["drift.md"]
         assert "No items need review" in reports["needs-review.md"]
 
     def test_knowledge_gaps_from_missing_rules(self, tmp_path: Path) -> None:
         mod = _load_script(_VALIDATE_PATH)
         kb_dir = tmp_path / "docs" / "brain" / "projects" / "test"
-        result = {
-            "findings": [
-                {"id": "ERR-001", "check": "required-artifact-integrity", "severity": "ERROR",
-                 "rule": "missing-required-page", "node": "",
-                 "description": "Domain hub for 'auth' is missing"},
-            ]
-        }
-        reports = mod.render_reports(result, kb_dir)
+        findings = [
+            {"id": "ERR-001", "check": "required-artifact-integrity", "severity": "ERROR",
+             "rule": "missing-required-page", "node": "",
+             "description": "Domain hub for 'auth' is missing"},
+        ]
+        reports = mod.render_reports_from_findings(findings)
         assert "knowledge-gaps.md" in reports
         assert "ERR-001" in reports["knowledge-gaps.md"]
 

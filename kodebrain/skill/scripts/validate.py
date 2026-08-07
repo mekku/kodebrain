@@ -131,43 +131,76 @@ def has_subsection(text: str, section: str, subsection: str) -> bool:
 
 # ── canonical source registry ────────────────────────────────────────
 
-CANONICAL_REGISTRY = {
-    "docs/design/spec/knowledge-model.md": {
-        "owns": [
-            "knowledge.layers", "provenance", "confidence", "knowledge_role",
-            "drift", "harvest-policy", "graph-compilation"
-        ],
-        "enum_sections": [],  # no lifecycle enums in this spec
-    },
-    "docs/design/spec/project-model.md": {
-        "owns": [
-            "project.structure", "project.layout", "node-id-format",
-            "domain-contract", "architecture-contract", "project-hub-contract"
-        ],
-        "enum_sections": [],
-    },
-    "docs/design/spec/workflow-model.md": {
-        "owns": [
-            "onboarding.process", "change-lifecycle", "change-record-structure",
-            "status-lifecycle-separation", "agent.behavior"
-        ],
-        "enum_sections": ["Change Lifecycle States"],
-    },
-    "docs/design/spec/history-model.md": {
-        "owns": [
-            "decision-lifecycle", "decision-lineage", "incident-lifecycle",
-            "incident-record", "milestone-record", "temporal-records"
-        ],
-        "enum_sections": ["Decision Lifecycle", "Incident Lifecycle"],
-    },
-    "docs/design/spec/governance.md": {
-        "owns": [
-            "spec-authority", "precedence", "compatibility",
-            "non-goals", "success-criteria"
-        ],
-        "enum_sections": [],
-    },
-}
+def build_canonical_registry(project_root: Path) -> Dict[str, Dict]:
+    """Derive canonical registry from spec frontmatter — not a handwritten copy.
+
+    Scans docs/design/spec/*.md for spec_role=canonical|canonical-root,
+    reads owns[] and exports (if present). One concept → one canonical owner.
+    """
+    spec_dir = project_root / "docs" / "design" / "spec"
+    if not spec_dir.is_dir():
+        return {}
+
+    registry: Dict[str, Dict] = {}
+    for spec_file in sorted(spec_dir.glob("*.md")):
+        try:
+            text = spec_file.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        fm, body = parse_frontmatter(text)
+        role = fm.get("spec_role", "")
+        if role not in ("canonical", "canonical-root"):
+            continue
+
+        rel_path = str(spec_file.relative_to(project_root))
+
+        # Read owns[] from frontmatter
+        owns_raw = fm.get("owns", [])
+        owns: List[str] = []
+        if isinstance(owns_raw, list):
+            owns = [str(o) for o in owns_raw]
+        elif isinstance(owns_raw, str) and owns_raw:
+            owns = [o.strip() for o in owns_raw.split(",") if o.strip()]
+
+        # Read exports from frontmatter (concept → section mapping)
+        exports_raw = fm.get("exports", {})
+        exports: Dict[str, str] = {}
+        if isinstance(exports_raw, dict):
+            exports = {str(k): str(v) for k, v in exports_raw.items()}
+
+        # Enum sections: if exports declared in frontmatter, use exclusively.
+        # If exports key absent, auto-detect. This lets specs opt out of
+        # auto-detection by setting `exports: {}`.
+        enum_sections: List[str] = []
+        if "exports" in fm:
+            enum_sections = list(exports.values())
+        else:
+            # Auto-detect: any H2/H3 heading that contains a table
+            # with backtick-wrapped values (lifecycle state pattern)
+            heading_re = re.compile(r"^(#{2,3})\s+(.+)$", re.MULTILINE)
+            table_re = re.compile(r"^\|.+\|$", re.MULTILINE)
+            for hm in heading_re.finditer(body):
+                heading = hm.group(2).strip()
+                heading_level = len(hm.group(1))
+                section_start = hm.end()
+                next_h = re.compile(
+                    rf"^#{{{1,{heading_level}}}}\s+", re.MULTILINE
+                )
+                nm = next_h.search(body, section_start)
+                section_end = nm.start() if nm else len(body)
+                section_body = body[section_start:section_end]
+                if table_re.search(section_body):
+                    backtick_vals = extract_enum_values(section_body)
+                    if len(backtick_vals) >= 3:
+                        enum_sections.append(heading)
+
+        registry[rel_path] = {
+            "owns": owns,
+            "exports": exports,
+            "enum_sections": enum_sections,
+        }
+
+    return registry
 
 
 # ── Check 1: Referential Integrity ───────────────────────────────────
@@ -425,8 +458,9 @@ def check_intent_observed_consistency(kb_dir: Path, nodes: List[Dict]) -> List[D
         # Rule: detect structured step table + progress disclaimer on same page
         if knowledge_role in ("intent", "mixed"):
             has_step_table = bool(re.search(r"\| # \| Description \|", body))
-            has_progress_disclaimer = has_subsection(body, "Status Notes", "") and any(
-                phrase in (extract_section(body, "Status Notes") or "").lower()
+            status_notes = extract_section(body, "Status Notes")
+            has_progress_disclaimer = status_notes is not None and any(
+                phrase in (status_notes or "").lower()
                 for phrase in ["in progress", "not yet", "tracked in", "llm-driven", "default"]
             )
             if has_step_table and has_progress_disclaimer:
@@ -448,6 +482,8 @@ def check_intent_observed_consistency(kb_dir: Path, nodes: List[Dict]) -> List[D
 
 def check_canonical_authority(kb_dir: Path, nodes: List[Dict], project_root: Path) -> List[Dict]:
     findings = []
+    registry = build_canonical_registry(project_root)
+
     for node in nodes:
         knowledge_role = node.get("knowledge_role", "")
         node_id = node.get("id", "unknown")
@@ -467,6 +503,8 @@ def check_canonical_authority(kb_dir: Path, nodes: List[Dict], project_root: Pat
         # Rule: canonical_source set but knowledge_role is not reference or mixed
         if canonical_source:
             cs_path = canonical_source if isinstance(canonical_source, str) else canonical_source.get("path", "")
+            cs_anchor = None if isinstance(canonical_source, str) else canonical_source.get("anchor", "")
+
             if knowledge_role not in ("reference", "mixed"):
                 findings.append({
                     "id": f"REV-CAN-{len(findings)+1:03d}",
@@ -489,15 +527,40 @@ def check_canonical_authority(kb_dir: Path, nodes: List[Dict], project_root: Pat
                         "node": node_id,
                         "description": f"canonical_source.path '{cs_path}' does not exist",
                     })
+                elif cs_anchor:
+                    # Rule: canonical_source.anchor must exist as a heading in the target file
+                    try:
+                        cs_body = load_md(cs_full)
+                    except OSError:
+                        findings.append({
+                            "id": f"ERR-CAN-{len(findings)+1:03d}",
+                            "check": "canonical-authority",
+                            "severity": "ERROR",
+                            "rule": "invalid-canonical-source",
+                            "node": node_id,
+                            "description": f"canonical_source.path '{cs_path}' cannot be read",
+                        })
+                        continue
+                    anchor_re = re.compile(
+                        rf"^#+\s+{re.escape(cs_anchor)}\s*$", re.MULTILINE
+                    )
+                    if not anchor_re.search(cs_body):
+                        findings.append({
+                            "id": f"ERR-CAN-{len(findings)+1:03d}",
+                            "check": "canonical-authority",
+                            "severity": "ERROR",
+                            "rule": "invalid-canonical-source",
+                            "node": node_id,
+                            "description": f"canonical_source.anchor '{cs_anchor}' not found in '{cs_path}'",
+                        })
 
             # Rule: page with canonical_source should not have How It Works section
             # with redefined contracts (enum tables matching canonical source)
             if has_section(body, "How It Works") or has_section(body, "Specification"):
                 # Check if the canonical source has matching enum sections
-                for cs_reg_path, cs_info in CANONICAL_REGISTRY.items():
-                    if cs_path and cs_path.startswith(cs_reg_path) or (cs_reg_path.endswith(cs_path.split("/")[-1]) if cs_path else False):
+                for cs_reg_path, cs_info in registry.items():
+                    if cs_path and (cs_path == cs_reg_path or cs_path.endswith(cs_reg_path.split("/")[-1])):
                         for enum_sec in cs_info.get("enum_sections", []):
-                            # Check if this page also has matching section
                             page_enums = extract_enum_values(extract_section(body, "How It Works") or body)
                             cs_body = load_md(project_root / cs_reg_path)
                             cs_enums = extract_enum_values(extract_section(cs_body, enum_sec) or cs_body)
@@ -517,8 +580,7 @@ def check_canonical_authority(kb_dir: Path, nodes: List[Dict], project_root: Pat
 
         # Rule: intent page without canonical_source that duplicates canonical content
         if knowledge_role == "intent":
-            # For each canonical source, check if this page duplicates its enums
-            for cs_path, cs_info in CANONICAL_REGISTRY.items():
+            for cs_path, cs_info in registry.items():
                 cs_full = project_root / cs_path
                 if not cs_full.exists():
                     continue
@@ -538,7 +600,6 @@ def check_canonical_authority(kb_dir: Path, nodes: List[Dict], project_root: Pat
                     overlap = cs_enums & page_enums
 
                     if len(overlap) >= 3:
-                        # Check if page has same section heading
                         page_has_matching_section = has_section(body, enum_sec)
 
                         if page_has_matching_section or len(overlap) >= len(cs_enums) * 0.7:
@@ -561,6 +622,10 @@ def check_canonical_authority(kb_dir: Path, nodes: List[Dict], project_root: Pat
 # ── Check 6: Report Consistency ───────────────────────────────────────
 
 def check_report_consistency(kb_dir: Path, all_findings: List[Dict]) -> List[Dict]:
+    """Post-render invariant: rendered reports must match validation findings.
+
+    Checks both text markers AND actual item counts. If rendered count ≠
+    validation count, the report is stale/inconsistent."""
     findings = []
     reports_dir = kb_dir / "reports"
 
@@ -572,21 +637,35 @@ def check_report_consistency(kb_dir: Path, all_findings: List[Dict]) -> List[Dic
     drift_md = reports_dir / "drift.md"
     if drift_md.exists():
         body = load_md(drift_md)
-        if "None detected" in body and len(drift_findings) > 0:
+        # Count actual drift items listed in the report (format: "- **DRF-XXX-NNN** ...")
+        report_drift_count = len(re.findall(r"\*\*DRF-[A-Z]+-\d+\*\*", body))
+        has_none_text = "No drift detected" in body
+        if has_none_text and len(drift_findings) > 0:
             findings.append({
                 "id": f"ERR-RPT-{len(findings)+1:03d}",
                 "check": "report-consistency",
                 "severity": "ERROR",
                 "rule": "report-contradicts-validation",
                 "report": "drift.md",
-                "description": f"drift.md claims 'None detected' but validation found {len(drift_findings)} DRIFT items",
+                "description": f"drift.md claims no drift but validation found {len(drift_findings)} DRIFT items",
+            })
+        elif not has_none_text and report_drift_count != len(drift_findings):
+            findings.append({
+                "id": f"ERR-RPT-{len(findings)+1:03d}",
+                "check": "report-consistency",
+                "severity": "ERROR",
+                "rule": "report-contradicts-validation",
+                "report": "drift.md",
+                "description": f"drift.md lists {report_drift_count} items but validation found {len(drift_findings)}",
             })
 
     # Check needs-review.md
     review_md = reports_dir / "needs-review.md"
     if review_md.exists():
         body = load_md(review_md)
-        if "None at this time" in body and len(review_findings) > 0:
+        report_review_count = len(re.findall(r"\*\*REV-[A-Z]+-\d+\*\*", body))
+        has_none_text = "No items need review" in body
+        if has_none_text and len(review_findings) > 0:
             findings.append({
                 "id": f"ERR-RPT-{len(findings)+1:03d}",
                 "check": "report-consistency",
@@ -595,16 +674,24 @@ def check_report_consistency(kb_dir: Path, all_findings: List[Dict]) -> List[Dic
                 "report": "needs-review.md",
                 "description": f"needs-review.md claims no items but validation found {len(review_findings)} REVIEW items",
             })
+        elif not has_none_text and report_review_count != len(review_findings):
+            findings.append({
+                "id": f"ERR-RPT-{len(findings)+1:03d}",
+                "check": "report-consistency",
+                "severity": "ERROR",
+                "rule": "report-contradicts-validation",
+                "report": "needs-review.md",
+                "description": f"needs-review.md lists {report_review_count} items but validation found {len(review_findings)}",
+            })
 
     return findings
 
 
 # ── Report Rendering ──────────────────────────────────────────────────
 
-def render_reports(result: Dict, kb_dir: Path) -> Dict[str, str]:
+def render_reports_from_findings(findings: List[Dict]) -> Dict[str, str]:
     """Generate report markdown files from validation findings.
     Pure projection — reports are derived from validation state, never authored independently."""
-    findings = result.get("findings", [])
     reports: Dict[str, str] = {}
 
     # drift.md
@@ -674,7 +761,7 @@ def run_validation(kb_dir: Path, project_root: Path) -> Dict:
 
     nodes_map = {n.get("id", ""): n for n in nodes}
 
-    # Run checks — each returns (findings, checks_performed)
+    # Run checks 1-5 (canonical input validation)
     all_findings: List[Dict] = []
     check_counts: Dict[str, int] = {}
 
@@ -684,9 +771,8 @@ def run_validation(kb_dir: Path, project_root: Path) -> Dict:
 
     art_findings = check_required_artifacts(kb_dir, nodes)
     all_findings.extend(art_findings)
-    # Count actual checks: project hub + domain hubs + graph files
     domain_count = len(list((kb_dir / "domains").iterdir())) if (kb_dir / "domains").exists() else 0
-    check_counts["required-artifact-integrity"] = 1 + domain_count + 4  # hub + domains + 4 graph files
+    check_counts["required-artifact-integrity"] = 1 + domain_count + 4
 
     prv_findings = check_provenance_consistency(kb_dir, nodes)
     all_findings.extend(prv_findings)
@@ -700,9 +786,20 @@ def run_validation(kb_dir: Path, project_root: Path) -> Dict:
     all_findings.extend(can_findings)
     check_counts["canonical-authority"] = len([n for n in nodes if n.get("page_path")])
 
+    # Render reports from validation findings BEFORE report consistency check.
+    # Reports are derived views — stale derived artifacts must not block validation.
+    # The renderer rebuilds them; the postcondition verifies they match.
+    reports_dir = kb_dir / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    reports = render_reports_from_findings(all_findings)
+    for filename, content in reports.items():
+        (reports_dir / filename).write_text(content, encoding="utf-8")
+
+    # Check 6: Report consistency — post-render invariant.
+    # Rendered reports must match validation findings.
     rpt_findings = check_report_consistency(kb_dir, all_findings)
     all_findings.extend(rpt_findings)
-    check_counts["report-consistency"] = 5  # fixed known reports
+    check_counts["report-consistency"] = 5
 
     # Assign sequential IDs
     for i, f in enumerate(all_findings):
@@ -777,13 +874,11 @@ def main():
     with open(output_path, "w") as f:
         json.dump(result, f, indent=2)
 
-    # Render reports if requested
+    # Reports are rendered during run_validation() — post-render consistency
+    # is checked as Check 6. The --render flag is accepted for backward
+    # compatibility but is now a no-op (always rendered).
     if args.render:
-        reports = render_reports(result, kb_dir)
         reports_dir = kb_dir / "reports"
-        reports_dir.mkdir(parents=True, exist_ok=True)
-        for filename, content in reports.items():
-            (reports_dir / filename).write_text(content, encoding="utf-8")
         print(f"Reports written to: {reports_dir}")
 
     cs = result["completion_state"]

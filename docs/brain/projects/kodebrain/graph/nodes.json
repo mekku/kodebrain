@@ -18,7 +18,7 @@
     ],
     "last_updated": "2026-08-07",
     "last_reviewed": "",
-    "change_state": "planned"
+    "change_state": "implemented"
   },
   {
     "id": "kb-core-graph-compilation",
@@ -278,7 +278,7 @@
     "last_reviewed": null,
     "canonical_source": {
       "path": "docs/design/spec/history-model.md",
-      "anchor": "decision-lifecycle"
+      "anchor": "Decision Lifecycle"
     }
   },
   {
@@ -475,7 +475,7 @@
     "last_reviewed": null,
     "canonical_source": {
       "path": "docs/design/spec/workflow-model.md",
-      "anchor": "change-lifecycle"
+      "anchor": "Change Lifecycle States"
     }
   },
   {
@@ -500,7 +500,7 @@
     "last_reviewed": null,
     "canonical_source": {
       "path": "docs/design/spec/workflow-model.md",
-      "anchor": "status-lifecycle-separation"
+      "anchor": "Status vs Lifecycle State"
     }
   },
   {

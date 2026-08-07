@@ -18,49 +18,14 @@
     "source": "kb-core-graph-compilation",
     "target": "kb-project-node-id-format",
     "section": "Related Concepts",
-    "edge_type": "related_to"
+    "edge_type": "uses"
   },
   {
     "type": "orphan_wikilink",
     "source": "kb-core-graph-compilation",
     "target": "kb-substrate-compile-graph",
     "section": "Related Concepts",
-    "edge_type": "related_to"
-  },
-  {
-    "type": "orphan_wikilink",
-    "source": "kb-core-confidence",
-    "target": "kb-workflow-scan",
-    "section": "Where It Appears",
-    "edge_type": "related_to"
-  },
-  {
-    "type": "orphan_wikilink",
-    "source": "kb-core-drift",
-    "target": "kb-core-drift-detection",
-    "section": "Where It Appears",
-    "edge_type": "related_to"
-  },
-  {
-    "type": "orphan_wikilink",
-    "source": "kb-core-drift",
-    "target": "kb-workflow-scan",
-    "section": "Where It Appears",
-    "edge_type": "related_to"
-  },
-  {
-    "type": "orphan_wikilink",
-    "source": "kb-core-knowledge-layers",
-    "target": "kb-core-drift-detection",
-    "section": "Where It Appears",
-    "edge_type": "related_to"
-  },
-  {
-    "type": "orphan_wikilink",
-    "source": "kb-core-provenance",
-    "target": "kb-core-drift-detection",
-    "section": "Where It Appears",
-    "edge_type": "related_to"
+    "edge_type": "uses"
   },
   {
     "type": "orphan_wikilink",
@@ -81,21 +46,21 @@
     "source": "kb-core",
     "target": "kb-core-drift-detection",
     "section": "Capabilities",
-    "edge_type": "related_to"
+    "edge_type": "contains"
   },
   {
     "type": "orphan_wikilink",
     "source": "kb-core",
     "target": "kb-core-harvest",
     "section": "Capabilities",
-    "edge_type": "related_to"
+    "edge_type": "contains"
   },
   {
     "type": "orphan_wikilink",
     "source": "kb-core",
     "target": "kb-core-graph-compile-flow",
     "section": "Core Flows",
-    "edge_type": "related_to"
+    "edge_type": "contains"
   },
   {
     "type": "orphan_wikilink",
@@ -116,13 +81,6 @@
     "source": "kb-core-knowledge-node-model",
     "target": "node-id",
     "section": "Wiki-Link Representation",
-    "edge_type": "related_to"
-  },
-  {
-    "type": "orphan_wikilink",
-    "source": "kb-governance-spec-authority",
-    "target": "kb-governance-precedence",
-    "section": "Where It Appears",
     "edge_type": "related_to"
   },
   {
@@ -164,14 +122,14 @@
     "type": "orphan_wikilink",
     "source": "kb-history-decision-lifecycle",
     "target": "kb-history-decision-lineage-flow",
-    "section": "Where It Appears",
+    "section": "Relationships",
     "edge_type": "related_to"
   },
   {
     "type": "orphan_wikilink",
     "source": "kb-history-decision-lifecycle",
     "target": "kb-history-timeline-generation",
-    "section": "Where It Appears",
+    "section": "Relationships",
     "edge_type": "related_to"
   },
   {
@@ -207,21 +165,21 @@
     "source": "kb-history",
     "target": "kb-history-timeline-generation",
     "section": "Capabilities",
-    "edge_type": "related_to"
+    "edge_type": "contains"
   },
   {
     "type": "orphan_wikilink",
     "source": "kb-history",
     "target": "kb-history-history-retrieval",
     "section": "Capabilities",
-    "edge_type": "related_to"
+    "edge_type": "contains"
   },
   {
     "type": "orphan_wikilink",
     "source": "kb-history",
     "target": "kb-history-decision-lineage-flow",
     "section": "Core Flows",
-    "edge_type": "related_to"
+    "edge_type": "contains"
   },
   {
     "type": "orphan_wikilink",
@@ -270,14 +228,14 @@
     "source": "kb-substrate-harvest",
     "target": "kb-core-harvest-policy",
     "section": "Related Concepts",
-    "edge_type": "related_to"
+    "edge_type": "uses"
   },
   {
     "type": "orphan_wikilink",
     "source": "kb-substrate-harvest",
     "target": "kb-substrate-sha-detection",
     "section": "Related Concepts",
-    "edge_type": "related_to"
+    "edge_type": "uses"
   },
   {
     "type": "orphan_wikilink",
@@ -298,62 +256,62 @@
     "source": "kb-substrate",
     "target": "kb-substrate-compile-graph",
     "section": "Capabilities",
-    "edge_type": "related_to"
+    "edge_type": "contains"
   },
   {
     "type": "orphan_wikilink",
     "source": "kb-substrate",
     "target": "kb-substrate-timeline",
     "section": "Capabilities",
-    "edge_type": "related_to"
+    "edge_type": "contains"
   },
   {
     "type": "orphan_wikilink",
     "source": "kb-substrate",
     "target": "kb-substrate-state-classification",
     "section": "Capabilities",
-    "edge_type": "related_to"
+    "edge_type": "contains"
   },
   {
     "type": "orphan_wikilink",
     "source": "kb-substrate",
     "target": "kb-substrate-migration",
     "section": "Capabilities",
-    "edge_type": "related_to"
+    "edge_type": "contains"
   },
   {
     "type": "orphan_wikilink",
     "source": "kb-substrate",
     "target": "kb-substrate-validation",
     "section": "Capabilities",
-    "edge_type": "related_to"
+    "edge_type": "contains"
   },
   {
     "type": "orphan_wikilink",
     "source": "kb-workflow-change-reconciliation",
     "target": "kb-history-lesson-promotion",
     "section": "Related Concepts",
-    "edge_type": "related_to"
+    "edge_type": "uses"
   },
   {
     "type": "orphan_wikilink",
     "source": "kb-workflow-onboard",
     "target": "kb-workflow-greenfield-mode",
     "section": "Related Concepts",
-    "edge_type": "related_to"
+    "edge_type": "uses"
   },
   {
     "type": "orphan_wikilink",
     "source": "kb-workflow-onboard",
     "target": "kb-workflow-brownfield-mode",
     "section": "Related Concepts",
-    "edge_type": "related_to"
+    "edge_type": "uses"
   },
   {
     "type": "orphan_wikilink",
     "source": "kb-workflow-status-lifecycle-separation",
     "target": "kb-history-incident-lifecycle",
-    "section": "Where It Appears",
+    "section": "Relationships",
     "edge_type": "related_to"
   },
   {

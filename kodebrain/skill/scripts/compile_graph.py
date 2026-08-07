@@ -323,21 +323,19 @@ def compile_graph(kb_dir: Path) -> dict[str, Any]:
             })
 
     # ── Second pass: resolve edge types from section context, fallback to types ─
+    # Infer semantics FIRST, then check target existence.
+    # This way orphan diagnostics carry the correct edge_type (depends_on, risky_for, etc.)
+    # instead of always "related_to".
     node_type_map: dict[str, str] = {n["id"]: n["type"] for n in nodes}
     orphan_targets: list[str] = []
 
     for edge in edges:
         target_id = edge["to"]
-        target_type = node_type_map.get(target_id)
-        if target_type is None:
-            orphan_targets.append(target_id)
-            edge["confidence"] = "needs_human_review"
-            continue
-
         source_type = node_type_map.get(edge["from"], "unknown")
+        target_type = node_type_map.get(target_id)
         section_heading = edge.pop("section", None)
 
-        # 1. Try section-context inference first
+        # 1. Infer edge type from section context or fallback — BEFORE target check
         section_result = _infer_edge_type_from_section(section_heading)
         if section_result is not None:
             edge_type, direction = section_result
@@ -346,13 +344,25 @@ def compile_graph(kb_dir: Path) -> dict[str, Any]:
                 edge["from"], edge["to"] = edge["to"], edge["from"]
             edge["type"] = edge_type
             edge["confidence"] = "supported"
-        else:
-            # 2. Fall back to node-type-pair inference
+        elif target_type is not None:
+            # 2. Fall back to node-type-pair inference (only when target exists)
             edge["type"] = _infer_edge_type_fallback(source_type, target_type)
             edge["confidence"] = "inferred"
+        else:
+            # Target unknown — can't use type-pair fallback, edge stays "related_to"
+            pass
+
+        # Restore section for orphan edges so diagnostics carry it
+        if target_type is None:
+            edge["section"] = section_heading
+
+        # 2. Check target existence
+        if target_type is None:
+            orphan_targets.append(target_id)
+            edge["confidence"] = "needs_human_review"
 
     # Remove edges with orphan targets and warn
-    # Record diagnostics before dropping — validation gate consumes these
+    # Record diagnostics after semantic inference — validation gate consumes these
     diagnostics: list[dict] = []
     for edge in edges:
         if edge["to"] not in node_type_map:

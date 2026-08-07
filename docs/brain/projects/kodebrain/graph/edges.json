@@ -72,6 +72,16 @@
     "last_updated": "2026-08-07"
   },
   {
+    "from": "kb-workflow-scan",
+    "to": "kb-core-confidence",
+    "type": "uses",
+    "confidence": "needs_human_review",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07",
+    "section": "Where It Appears"
+  },
+  {
     "from": "kb-governance",
     "to": "kb-core-confidence",
     "type": "uses",
@@ -88,6 +98,16 @@
     "provenance": "generated",
     "label": "",
     "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-core-drift-detection",
+    "to": "kb-core-drift",
+    "type": "uses",
+    "confidence": "needs_human_review",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07",
+    "section": "Where It Appears"
   },
   {
     "from": "kb-workflow-onboard",
@@ -108,6 +128,16 @@
     "last_updated": "2026-08-07"
   },
   {
+    "from": "kb-workflow-scan",
+    "to": "kb-core-drift",
+    "type": "uses",
+    "confidence": "needs_human_review",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07",
+    "section": "Where It Appears"
+  },
+  {
     "from": "kb-core-knowledge-layers",
     "to": "kb-core",
     "type": "related_to",
@@ -115,6 +145,16 @@
     "provenance": "generated",
     "label": "",
     "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-core-drift-detection",
+    "to": "kb-core-knowledge-layers",
+    "type": "uses",
+    "confidence": "needs_human_review",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07",
+    "section": "Where It Appears"
   },
   {
     "from": "kb-workflow-onboard",
@@ -142,6 +182,16 @@
     "provenance": "generated",
     "label": "",
     "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-core-drift-detection",
+    "to": "kb-core-provenance",
+    "type": "uses",
+    "confidence": "needs_human_review",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07",
+    "section": "Where It Appears"
   },
   {
     "from": "kb-workflow-onboard",
@@ -306,6 +356,16 @@
     "last_updated": "2026-08-07"
   },
   {
+    "from": "kb-governance-precedence",
+    "to": "kb-governance-spec-authority",
+    "type": "uses",
+    "confidence": "needs_human_review",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07",
+    "section": "Where It Appears"
+  },
+  {
     "from": "kb-workflow-onboard",
     "to": "kb-governance-spec-authority",
     "type": "uses",
@@ -360,10 +420,10 @@
     "last_updated": "2026-08-07"
   },
   {
-    "from": "kb-workflow-change-lifecycle",
-    "to": "kb-history-decision-lifecycle",
-    "type": "uses",
-    "confidence": "supported",
+    "from": "kb-history-decision-lifecycle",
+    "to": "kb-workflow-change-lifecycle",
+    "type": "related_to",
+    "confidence": "inferred",
     "provenance": "generated",
     "label": "",
     "last_updated": "2026-08-07"
@@ -630,28 +690,28 @@
     "last_updated": "2026-08-07"
   },
   {
-    "from": "kb-workflow-change-reconciliation",
-    "to": "kb-workflow-change-lifecycle",
-    "type": "uses",
-    "confidence": "supported",
+    "from": "kb-workflow-change-lifecycle",
+    "to": "kb-history",
+    "type": "related_to",
+    "confidence": "inferred",
     "provenance": "generated",
     "label": "",
     "last_updated": "2026-08-07"
   },
   {
-    "from": "kb-workflow-onboard",
-    "to": "kb-workflow-change-lifecycle",
-    "type": "uses",
-    "confidence": "supported",
+    "from": "kb-workflow-change-lifecycle",
+    "to": "kb-workflow-change-reconciliation",
+    "type": "related_to",
+    "confidence": "inferred",
     "provenance": "generated",
     "label": "",
     "last_updated": "2026-08-07"
   },
   {
-    "from": "kb-history",
-    "to": "kb-workflow-change-lifecycle",
-    "type": "uses",
-    "confidence": "supported",
+    "from": "kb-workflow-change-lifecycle",
+    "to": "kb-workflow-onboard",
+    "type": "related_to",
+    "confidence": "inferred",
     "provenance": "generated",
     "label": "",
     "last_updated": "2026-08-07"
@@ -666,19 +726,19 @@
     "last_updated": "2026-08-07"
   },
   {
-    "from": "kb-workflow-change-lifecycle",
-    "to": "kb-workflow-status-lifecycle-separation",
-    "type": "uses",
-    "confidence": "supported",
+    "from": "kb-workflow-status-lifecycle-separation",
+    "to": "kb-workflow-change-lifecycle",
+    "type": "related_to",
+    "confidence": "inferred",
     "provenance": "generated",
     "label": "",
     "last_updated": "2026-08-07"
   },
   {
-    "from": "kb-history-decision-lifecycle",
-    "to": "kb-workflow-status-lifecycle-separation",
-    "type": "uses",
-    "confidence": "supported",
+    "from": "kb-workflow-status-lifecycle-separation",
+    "to": "kb-history-decision-lifecycle",
+    "type": "related_to",
+    "confidence": "inferred",
     "provenance": "generated",
     "label": "",
     "last_updated": "2026-08-07"

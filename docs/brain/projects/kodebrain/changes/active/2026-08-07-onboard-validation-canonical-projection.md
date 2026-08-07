@@ -6,7 +6,7 @@ confidence: supported
 provenance: human
 knowledge_role: intent
 project: kodebrain
-change_state: planned
+change_state: implemented
 source_files: []
 last_updated: "2026-08-07"
 tags:
@@ -66,49 +66,18 @@ Onboard → Generate KB → Compile Graph
                     completion_state
 ```
 
-### Severity tiers
+### Severity model and completion states
 
-| Tier | Meaning | Effect |
-|---|---|---|
-| **ERROR** | Structural violation, missing required artifact, invalid provenance, canonical duplication | Onboard cannot declare complete |
-| **DRIFT** | Intent ≠ observed, planned architecture ≠ current runtime | Onboard completes as `complete_with_drift` |
-| **REVIEW** | Ambiguous provenance, inferred claims lacking evidence | Onboard can complete but must surface warning |
-
-### Completion states
-
-| State | Condition |
-|---|---|
-| `complete` | Zero ERROR, zero DRIFT |
-| `complete_with_drift` | Zero ERROR, some DRIFT |
-| `needs_review` | Zero ERROR, REVIEW items present |
-| `blocked` | Any ERROR present |
+Defined in [`onboard-validation-gate.md`](../../../design/spec/onboard-validation-gate.md):
+- Severity tiers: ERROR (blocks completion), DRIFT (completes with drift), REVIEW (surfaces warning)
+- Completion states: `complete`, `complete_with_drift`, `needs_review`, `blocked`
 
 ### canonical_source field
 
-```yaml
-canonical_source:
-  path: docs/design/spec/history-model.md
-  anchor: decision-lifecycle
-```
-
-Rule: if `canonical_source` exists, the KB page must NOT claim itself as canonical owner. It may summarize context/navigation but normative questions route to the source.
-
-Template for reference pages:
-```markdown
-## Canonical Definition
-See: [[canonical-source-path#anchor]]
-
-## Project Context
-...
-
-## Relationships
-...
-
-## Evidence
-...
-```
-
-No "How It Works" section with redefined enum contracts.
+Defined in [`knowledge-model.md`](../../../design/spec/knowledge-model.md#canonical_source-field-semantics):
+- KB pages with `canonical_source` use `knowledge_role: reference` and constrained template
+- No "How It Works" sections with redefined enum contracts
+- Normative questions route to the canonical source
 
 ### Reports as derived views
 
@@ -149,6 +118,57 @@ Running the validation gate against the KB produced by commit `8760f83` must:
    - **DRIFT:** intended deterministic onboard pipeline vs observed LLM-driven default path
    - **ERROR:** normative lifecycle concept pages duplicate canonical definitions without `canonical_source`
 
+## Implementation Evidence
+
+### Code artifacts
+- `kodebrain/skill/scripts/validate.py` — deterministic validation gate (6 checks, dynamic canonical registry, anchor validation, post-render report consistency)
+- `kodebrain/skill/scripts/compile_graph.py` — edge semantics inferred before target-existence check (correct orphan severity)
+- `schema/node.schema.json` — `canonical_source` field (object: path required, anchor optional)
+- `kodebrain/skill/scripts/frontmatter.py` — shared parser handles nested YAML maps
+- `kodebrain/skill/scripts/spec_validator.py` — structural spec authority checker (parent chain, duplicate owners, reachability)
+- `templates/reference.md` — constrained reference page template (Canonical Definition, Project Context, Relationships, Evidence)
+
+### Spec artifacts
+- `docs/design/spec/onboard-validation-gate.md` — severity model, completion states, finding model (stripped to owned concerns)
+- `docs/design/spec/workflow-model.md` — onboard validation gate integration + completion states added
+- `docs/design/spec/knowledge-model.md` — `canonical_source` field semantics + reference template added
+- `docs/design/spec/governance.md` — canonical projection rules added
+- `docs/design/spec.md` — root diagram updated to 6 children, Validation Gate row corrected
+
+### Tests
+- `tests/test_validation_gate.py` — frontmatter nested map, compile canonical_source, orphan diagnostics, referential integrity (false-positive suppression), canonical duplication, provenance consistency, render reports, portable artifact, integration compile→validate
+- `tests/test_referential_integrity.py` — granular referential integrity edge cases
+- `tests/test_substrate.py` — existing substrate tests pass
+
+## Deviations From Plan
+
+- **Spec ownership reroute applied:** Validation gate process moved to workflow-model.md, canonical_source field semantics moved to knowledge-model.md, canonical projection rules moved to governance-model.md. The onboard-validation-gate.md now owns only severity model, completion states, and finding model — matching its frontmatter `owns[]`.
+- **CANONICAL_REGISTRY replaced with dynamic derivation:** The hand-written registry (which diverged from actual spec `owns[]`) is replaced by `build_canonical_registry()` that scans spec frontmatter directly. One concept → one canonical owner enforced at the source.
+- **Anchor validation added:** `canonical_source.anchor` is now verified to exist as a heading in the target file. Missing anchor → ERROR (invalid-canonical-source).
+- **Compiler edge semantics reordered:** Edge type is now inferred before target-existence check so orphan diagnostics carry correct semantic type (depends_on, risky_for) instead of always `related_to`.
+- **Report consistency becomes post-render invariant:** Reports are rendered during `run_validation()` before Check 6 runs. Stale derived artifacts cannot block validation.
+- **Item count comparison added:** Check 6 now counts actual `**ID**` markers in reports, not just "None detected" text.
+- **Status Notes bug fixed:** `has_subsection(body, "Status Notes", "")` replaced with `extract_section(body, "Status Notes")` check.
+- **Reference template created:** `templates/reference.md` with constrained structure (Canonical Definition, Project Context, Relationships, Evidence) — no How It Works / Specification sections.
+
+## Lessons Learned
+
+1. **frontmatter ownership ≠ root map ≠ body definitions ≠ actual child specs:** The spec defined ownership routing in prose but didn't move the definitions. In round 2 the definitions moved to their canonical owners. The invariant "one concept → one canonical owner" must be enforced at the file level, not just declared.
+2. **Hand-written registries drift:** CANONICAL_REGISTRY had different concern names than the actual spec `owns[]` (e.g. `decision-lifecycle` vs `decision.record`). Dynamic derivation from source frontmatter eliminates this class of bug.
+3. **Derived artifacts must not gate validation:** Stale reports blocking validation is the same anti-pattern the system was built to prevent — derived data claiming authority over source. Reports are now rendered before the consistency check.
+4. **Edge semantics must precede orphan detection:** Inferring `related_to` for all orphans hid the real severity. A missing domain dependency should be ERROR; a missing "See Also" should be REVIEW. Fixed by reordering the compiler pass.
+5. **Kode Brain's change-first workflow applies to Kode Brain itself:** This change record was `planned` throughout implementation. The system it builds — recording intent before code, reconciling after — must be used by its own development. This record now reflects actual implementation state.
+
+## Follow-ups
+
+- KB pages `kb-history-decision-lifecycle` and `kb-workflow-change-lifecycle` need `canonical_source` + `knowledge_role: reference` to resolve the 3 canonical duplication ERRORs
+- KB should be re-onboarded after fixes to verify ERROR = 0
+- `change_state` should progress to `reconciled` after KB pages are fixed and re-validation passes
+
 ## Progress Log
 
 - **2026-08-07:** Change record created. Step 0 — dogfood: this change record itself is the first artifact produced. Validation Gate spec to follow.
+- **2026-08-07:** Spec written (`docs/design/spec/onboard-validation-gate.md`). Defines 6 checks, severity tiers, completion states, canonical_source field, projection rules, dogfood acceptance criteria.
+- **2026-08-07:** Implementation — `validate.py` with all 6 checks, `compile_graph.py` emits diagnostics.json, `frontmatter.py` handles nested maps. Tests pass via `test_validation_gate.py`.
+- **2026-08-07:** Commit `88196fa` — validation gate correctness pass: nested frontmatter, diagnostics, render, onboard integration. Spec ownership routing declared in prose but definitions not yet moved.
+- **2026-08-07:** Commit (this change) — ownership reconcile: moved definitions to canonical owners, dynamic registry, anchor validation, compiler edge reorder, report postcondition, reference template, change record dogfood.

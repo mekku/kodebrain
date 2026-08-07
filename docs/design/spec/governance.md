@@ -99,3 +99,36 @@ Kode Brain succeeds when:
 **During development:** Material changes leave a trace from intent → implementation → reconciled project knowledge. History retrieval warns about past incidents and superseded approaches before changes begin.
 
 **Over time:** The project knowledge base becomes more accurate through work rather than steadily becoming stale documentation. Accumulated history prevents repeated mistakes.
+
+## Canonical Projection Rules
+
+A KB page whose content is primarily derived from a canonical source must:
+1. Declare `canonical_source` pointing to the canonical document
+2. Set `knowledge_role: reference`
+3. Use the reference page template (no redefined contracts)
+4. Add project-specific context, relationships, and evidence — these are the page's value-add
+
+**Anti-pattern (canonical duplication):**
+```
+canonical spec defines lifecycle states
+    ↓
+KB concept page copies the same state table
+    ↓
+page has knowledge_role: intent and no canonical_source
+    ↓
+One concept → two authoritative places
+```
+
+**Correct pattern (canonical projection):**
+```
+canonical spec defines lifecycle states
+    ↓
+KB concept page declares canonical_source
+    ↓
+page provides: project context, related nodes, source evidence
+    ↓
+Normative question → canonical source
+Navigation/context question → KB page
+```
+
+The validation gate enforces this structurally: any intent page that duplicates enum tables from a canonical source without `canonical_source` is flagged as `canonical-duplication` (ERROR).

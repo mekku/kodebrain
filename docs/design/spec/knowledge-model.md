@@ -160,3 +160,43 @@ search indexes
 ```
 
 Graph files are derived machine indexes and must not become a second independently edited source of truth. Normal agent workflow does not manually maintain the same relationship in Markdown and JSON independently. Generated indexes can be rebuilt deterministically.
+
+## `canonical_source` Field Semantics
+
+A knowledge node may declare that its normative definition lives in an external canonical document:
+
+```yaml
+canonical_source:
+  path: docs/design/spec/history-model.md
+  anchor: decision-lifecycle
+```
+
+### Knowledge Role Constraints
+
+- `knowledge_role: reference` — required when `canonical_source` is set. The page is a navigation/context projection of a canonical definition elsewhere. Normative questions route to `canonical_source`.
+- `knowledge_role: mixed` — permitted with `canonical_source` when the page contains both reference navigation AND original observed evidence not covered by the canonical source.
+- `knowledge_role: intent` — NOT permitted with `canonical_source`. Intent pages claim to own the concept; if a canonical source exists, intent is held there.
+
+### Reference Page Template
+
+Pages with `canonical_source` use a constrained structure:
+
+```markdown
+## Canonical Definition
+See: [canonical-source-path#anchor]
+
+## Project Context
+(How this concept manifests in this project specifically)
+
+## Relationships
+(Wiki-links to related nodes)
+
+## Evidence
+(Source files, runtime evidence where this concept is observed)
+```
+
+No `## How It Works`, `## Specification`, or enumerated contracts. The canonical source owns the definition.
+
+### Machine Contract
+
+The field shape is defined in `schema/node.schema.json`. This spec defines what `canonical_source` *means* — the schema defines its *form*.

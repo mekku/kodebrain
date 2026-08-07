@@ -9,6 +9,8 @@ owns:
   - change.lifecycle
   - status-lifecycle.separation
   - agent.behavior
+exports:
+  change.lifecycle: Change Lifecycle States
 ---
 
 # Workflow Model
@@ -157,3 +159,49 @@ Before implementation: create/update the active change, update intended decision
 After implementation: update observed knowledge from changed source, reconcile affected project/domain/architecture pages, surface drift or uncertainty, update indexes, complete the change only when documentation and implementation agree sufficiently.
 
 Refactors that do not change behavior may use a lighter update path.
+
+---
+
+## Onboard Validation Gate Integration
+
+The onboard workflow includes a deterministic validation gate after graph compilation and before declaring completion:
+
+```text
+Onboard → Generate KB → Compile Graph
+                              ↓
+                    ┌─── VALIDATION GATE ───┐
+                    │                        │
+                    │ 1. Referential integrity
+                    │ 2. Required artifact integrity
+                    │ 3. Provenance/confidence consistency
+                    │ 4. Intent-observed consistency
+                    │ 5. Canonical authority / projection integrity
+                    │ 6. Report consistency
+                    │                        │
+                    └───────────┬────────────┘
+                                ↓
+                      validation-result.json
+                                │
+                      ┌─────────┼─────────┐
+                      ▼         ▼         ▼
+                 drift.md   needs-    knowledge-
+                            review.md gaps.md
+                                │
+                                ▼
+                        completion_state
+```
+
+The gate is called by the onboard workflow after `compile_graph.py` and before declaring completion. It is a deterministic Python script: same KB → same result.
+
+### Completion States
+
+| State | Condition | Onboard behavior |
+|---|---|---|
+| `complete` | Zero ERROR, zero DRIFT | Onboard declares success |
+| `complete_with_drift` | Zero ERROR, one or more DRIFT | Onboard completes; drift items written to reports; summary warns |
+| `needs_review` | Zero ERROR, one or more REVIEW | Onboard completes; review items written to reports; summary notes pending review |
+| `blocked` | One or more ERROR | Onboard does NOT declare success; ERROR items listed; user told to resolve before re-running |
+
+When both DRIFT and REVIEW exist without ERROR → `complete_with_drift` (DRIFT takes precedence over REVIEW).
+
+Canonical severity model and finding structure: see [`onboard-validation-gate`](onboard-validation-gate.md).

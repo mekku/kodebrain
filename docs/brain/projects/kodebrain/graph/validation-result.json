@@ -1,10 +1,10 @@
 {
-  "completion_state": "blocked",
+  "completion_state": "complete_with_drift",
   "summary": {
-    "total_findings": 70,
-    "error_count": 3,
+    "total_findings": 61,
+    "error_count": 0,
     "drift_count": 4,
-    "review_count": 63
+    "review_count": 57
   },
   "findings": [
     {
@@ -33,8 +33,8 @@
       "rule": "orphan-wikilink",
       "source_node": "kb-core-graph-compilation",
       "target": "kb-project-node-id-format",
-      "edge_type": "related_to",
-      "description": "Wiki-link target 'kb-project-node-id-format' does not exist (linked from 'kb-core-graph-compilation' via 'related_to')",
+      "edge_type": "uses",
+      "description": "Wiki-link target 'kb-project-node-id-format' does not exist (linked from 'kb-core-graph-compilation' via 'uses')",
       "id": "REV-REF-003"
     },
     {
@@ -43,59 +43,9 @@
       "rule": "orphan-wikilink",
       "source_node": "kb-core-graph-compilation",
       "target": "kb-substrate-compile-graph",
-      "edge_type": "related_to",
-      "description": "Wiki-link target 'kb-substrate-compile-graph' does not exist (linked from 'kb-core-graph-compilation' via 'related_to')",
+      "edge_type": "uses",
+      "description": "Wiki-link target 'kb-substrate-compile-graph' does not exist (linked from 'kb-core-graph-compilation' via 'uses')",
       "id": "REV-REF-004"
-    },
-    {
-      "check": "referential-integrity",
-      "severity": "REVIEW",
-      "rule": "orphan-wikilink",
-      "source_node": "kb-core-confidence",
-      "target": "kb-workflow-scan",
-      "edge_type": "related_to",
-      "description": "Wiki-link target 'kb-workflow-scan' does not exist (linked from 'kb-core-confidence' via 'related_to')",
-      "id": "REV-REF-005"
-    },
-    {
-      "check": "referential-integrity",
-      "severity": "REVIEW",
-      "rule": "orphan-wikilink",
-      "source_node": "kb-core-drift",
-      "target": "kb-core-drift-detection",
-      "edge_type": "related_to",
-      "description": "Wiki-link target 'kb-core-drift-detection' does not exist (linked from 'kb-core-drift' via 'related_to')",
-      "id": "REV-REF-006"
-    },
-    {
-      "check": "referential-integrity",
-      "severity": "REVIEW",
-      "rule": "orphan-wikilink",
-      "source_node": "kb-core-drift",
-      "target": "kb-workflow-scan",
-      "edge_type": "related_to",
-      "description": "Wiki-link target 'kb-workflow-scan' does not exist (linked from 'kb-core-drift' via 'related_to')",
-      "id": "REV-REF-007"
-    },
-    {
-      "check": "referential-integrity",
-      "severity": "REVIEW",
-      "rule": "orphan-wikilink",
-      "source_node": "kb-core-knowledge-layers",
-      "target": "kb-core-drift-detection",
-      "edge_type": "related_to",
-      "description": "Wiki-link target 'kb-core-drift-detection' does not exist (linked from 'kb-core-knowledge-layers' via 'related_to')",
-      "id": "REV-REF-008"
-    },
-    {
-      "check": "referential-integrity",
-      "severity": "REVIEW",
-      "rule": "orphan-wikilink",
-      "source_node": "kb-core-provenance",
-      "target": "kb-core-drift-detection",
-      "edge_type": "related_to",
-      "description": "Wiki-link target 'kb-core-drift-detection' does not exist (linked from 'kb-core-provenance' via 'related_to')",
-      "id": "REV-REF-009"
     },
     {
       "check": "referential-integrity",
@@ -105,7 +55,7 @@
       "target": "kb-core-knowledge-role",
       "edge_type": "related_to",
       "description": "Wiki-link target 'kb-core-knowledge-role' does not exist (linked from 'kb-core' via 'related_to')",
-      "id": "REV-REF-010"
+      "id": "REV-REF-005"
     },
     {
       "check": "referential-integrity",
@@ -115,7 +65,7 @@
       "target": "kb-core-harvest-policy",
       "edge_type": "related_to",
       "description": "Wiki-link target 'kb-core-harvest-policy' does not exist (linked from 'kb-core' via 'related_to')",
-      "id": "REV-REF-011"
+      "id": "REV-REF-006"
     },
     {
       "check": "referential-integrity",
@@ -123,9 +73,9 @@
       "rule": "orphan-wikilink",
       "source_node": "kb-core",
       "target": "kb-core-drift-detection",
-      "edge_type": "related_to",
-      "description": "Wiki-link target 'kb-core-drift-detection' does not exist (linked from 'kb-core' via 'related_to')",
-      "id": "REV-REF-012"
+      "edge_type": "contains",
+      "description": "Wiki-link target 'kb-core-drift-detection' does not exist (linked from 'kb-core' via 'contains')",
+      "id": "REV-REF-007"
     },
     {
       "check": "referential-integrity",
@@ -133,9 +83,9 @@
       "rule": "orphan-wikilink",
       "source_node": "kb-core",
       "target": "kb-core-harvest",
-      "edge_type": "related_to",
-      "description": "Wiki-link target 'kb-core-harvest' does not exist (linked from 'kb-core' via 'related_to')",
-      "id": "REV-REF-013"
+      "edge_type": "contains",
+      "description": "Wiki-link target 'kb-core-harvest' does not exist (linked from 'kb-core' via 'contains')",
+      "id": "REV-REF-008"
     },
     {
       "check": "referential-integrity",
@@ -143,9 +93,9 @@
       "rule": "orphan-wikilink",
       "source_node": "kb-core",
       "target": "kb-core-graph-compile-flow",
-      "edge_type": "related_to",
-      "description": "Wiki-link target 'kb-core-graph-compile-flow' does not exist (linked from 'kb-core' via 'related_to')",
-      "id": "REV-REF-014"
+      "edge_type": "contains",
+      "description": "Wiki-link target 'kb-core-graph-compile-flow' does not exist (linked from 'kb-core' via 'contains')",
+      "id": "REV-REF-009"
     },
     {
       "check": "referential-integrity",
@@ -155,7 +105,7 @@
       "target": "wiki-links",
       "edge_type": "related_to",
       "description": "Wiki-link target 'wiki-links' does not exist (linked from 'kb-core-knowledge-edge-model' via 'related_to')",
-      "id": "REV-REF-015"
+      "id": "REV-REF-010"
     },
     {
       "check": "referential-integrity",
@@ -165,7 +115,7 @@
       "target": "target",
       "edge_type": "related_to",
       "description": "Wiki-link target 'target' does not exist (linked from 'kb-core-knowledge-edge-model' via 'related_to')",
-      "id": "REV-REF-016"
+      "id": "REV-REF-011"
     },
     {
       "check": "referential-integrity",
@@ -175,17 +125,7 @@
       "target": "node-id",
       "edge_type": "related_to",
       "description": "Wiki-link target 'node-id' does not exist (linked from 'kb-core-knowledge-node-model' via 'related_to')",
-      "id": "REV-REF-017"
-    },
-    {
-      "check": "referential-integrity",
-      "severity": "REVIEW",
-      "rule": "orphan-wikilink",
-      "source_node": "kb-governance-spec-authority",
-      "target": "kb-governance-precedence",
-      "edge_type": "related_to",
-      "description": "Wiki-link target 'kb-governance-precedence' does not exist (linked from 'kb-governance-spec-authority' via 'related_to')",
-      "id": "REV-REF-018"
+      "id": "REV-REF-012"
     },
     {
       "check": "referential-integrity",
@@ -195,7 +135,7 @@
       "target": "kb-governance-precedence",
       "edge_type": "related_to",
       "description": "Wiki-link target 'kb-governance-precedence' does not exist (linked from 'kb-governance' via 'related_to')",
-      "id": "REV-REF-019"
+      "id": "REV-REF-013"
     },
     {
       "check": "referential-integrity",
@@ -205,7 +145,7 @@
       "target": "kb-governance-artifact-classes",
       "edge_type": "related_to",
       "description": "Wiki-link target 'kb-governance-artifact-classes' does not exist (linked from 'kb-governance' via 'related_to')",
-      "id": "REV-REF-020"
+      "id": "REV-REF-014"
     },
     {
       "check": "referential-integrity",
@@ -215,7 +155,7 @@
       "target": "kb-governance-compatibility",
       "edge_type": "related_to",
       "description": "Wiki-link target 'kb-governance-compatibility' does not exist (linked from 'kb-governance' via 'related_to')",
-      "id": "REV-REF-021"
+      "id": "REV-REF-015"
     },
     {
       "check": "referential-integrity",
@@ -225,7 +165,7 @@
       "target": "kb-governance-non-goals",
       "edge_type": "related_to",
       "description": "Wiki-link target 'kb-governance-non-goals' does not exist (linked from 'kb-governance' via 'related_to')",
-      "id": "REV-REF-022"
+      "id": "REV-REF-016"
     },
     {
       "check": "referential-integrity",
@@ -235,7 +175,7 @@
       "target": "kb-governance-success-criteria",
       "edge_type": "related_to",
       "description": "Wiki-link target 'kb-governance-success-criteria' does not exist (linked from 'kb-governance' via 'related_to')",
-      "id": "REV-REF-023"
+      "id": "REV-REF-017"
     },
     {
       "check": "referential-integrity",
@@ -245,7 +185,7 @@
       "target": "kb-history-decision-lineage-flow",
       "edge_type": "related_to",
       "description": "Wiki-link target 'kb-history-decision-lineage-flow' does not exist (linked from 'kb-history-decision-lifecycle' via 'related_to')",
-      "id": "REV-REF-024"
+      "id": "REV-REF-018"
     },
     {
       "check": "referential-integrity",
@@ -255,7 +195,7 @@
       "target": "kb-history-timeline-generation",
       "edge_type": "related_to",
       "description": "Wiki-link target 'kb-history-timeline-generation' does not exist (linked from 'kb-history-decision-lifecycle' via 'related_to')",
-      "id": "REV-REF-025"
+      "id": "REV-REF-019"
     },
     {
       "check": "referential-integrity",
@@ -265,7 +205,7 @@
       "target": "kb-history-incident-lifecycle",
       "edge_type": "related_to",
       "description": "Wiki-link target 'kb-history-incident-lifecycle' does not exist (linked from 'kb-history' via 'related_to')",
-      "id": "REV-REF-026"
+      "id": "REV-REF-020"
     },
     {
       "check": "referential-integrity",
@@ -275,7 +215,7 @@
       "target": "kb-history-decision-lineage",
       "edge_type": "related_to",
       "description": "Wiki-link target 'kb-history-decision-lineage' does not exist (linked from 'kb-history' via 'related_to')",
-      "id": "REV-REF-027"
+      "id": "REV-REF-021"
     },
     {
       "check": "referential-integrity",
@@ -285,7 +225,7 @@
       "target": "kb-history-append-only",
       "edge_type": "related_to",
       "description": "Wiki-link target 'kb-history-append-only' does not exist (linked from 'kb-history' via 'related_to')",
-      "id": "REV-REF-028"
+      "id": "REV-REF-022"
     },
     {
       "check": "referential-integrity",
@@ -295,7 +235,7 @@
       "target": "kb-history-lesson-promotion",
       "edge_type": "related_to",
       "description": "Wiki-link target 'kb-history-lesson-promotion' does not exist (linked from 'kb-history' via 'related_to')",
-      "id": "REV-REF-029"
+      "id": "REV-REF-023"
     },
     {
       "check": "referential-integrity",
@@ -303,9 +243,9 @@
       "rule": "orphan-wikilink",
       "source_node": "kb-history",
       "target": "kb-history-timeline-generation",
-      "edge_type": "related_to",
-      "description": "Wiki-link target 'kb-history-timeline-generation' does not exist (linked from 'kb-history' via 'related_to')",
-      "id": "REV-REF-030"
+      "edge_type": "contains",
+      "description": "Wiki-link target 'kb-history-timeline-generation' does not exist (linked from 'kb-history' via 'contains')",
+      "id": "REV-REF-024"
     },
     {
       "check": "referential-integrity",
@@ -313,9 +253,9 @@
       "rule": "orphan-wikilink",
       "source_node": "kb-history",
       "target": "kb-history-history-retrieval",
-      "edge_type": "related_to",
-      "description": "Wiki-link target 'kb-history-history-retrieval' does not exist (linked from 'kb-history' via 'related_to')",
-      "id": "REV-REF-031"
+      "edge_type": "contains",
+      "description": "Wiki-link target 'kb-history-history-retrieval' does not exist (linked from 'kb-history' via 'contains')",
+      "id": "REV-REF-025"
     },
     {
       "check": "referential-integrity",
@@ -323,9 +263,9 @@
       "rule": "orphan-wikilink",
       "source_node": "kb-history",
       "target": "kb-history-decision-lineage-flow",
-      "edge_type": "related_to",
-      "description": "Wiki-link target 'kb-history-decision-lineage-flow' does not exist (linked from 'kb-history' via 'related_to')",
-      "id": "REV-REF-032"
+      "edge_type": "contains",
+      "description": "Wiki-link target 'kb-history-decision-lineage-flow' does not exist (linked from 'kb-history' via 'contains')",
+      "id": "REV-REF-026"
     },
     {
       "check": "referential-integrity",
@@ -335,7 +275,7 @@
       "target": "kb-project-node-id-format",
       "edge_type": "related_to",
       "description": "Wiki-link target 'kb-project-node-id-format' does not exist (linked from 'kb-project' via 'related_to')",
-      "id": "REV-REF-033"
+      "id": "REV-REF-027"
     },
     {
       "check": "referential-integrity",
@@ -345,7 +285,7 @@
       "target": "kb-project-hub-contract",
       "edge_type": "related_to",
       "description": "Wiki-link target 'kb-project-hub-contract' does not exist (linked from 'kb-project' via 'related_to')",
-      "id": "REV-REF-034"
+      "id": "REV-REF-028"
     },
     {
       "check": "referential-integrity",
@@ -355,7 +295,7 @@
       "target": "kb-project-domain-contract",
       "edge_type": "related_to",
       "description": "Wiki-link target 'kb-project-domain-contract' does not exist (linked from 'kb-project' via 'related_to')",
-      "id": "REV-REF-035"
+      "id": "REV-REF-029"
     },
     {
       "check": "referential-integrity",
@@ -365,7 +305,7 @@
       "target": "kb-project-architecture-contract",
       "edge_type": "related_to",
       "description": "Wiki-link target 'kb-project-architecture-contract' does not exist (linked from 'kb-project' via 'related_to')",
-      "id": "REV-REF-036"
+      "id": "REV-REF-030"
     },
     {
       "check": "referential-integrity",
@@ -375,7 +315,7 @@
       "target": "kb-project-page-layout",
       "edge_type": "related_to",
       "description": "Wiki-link target 'kb-project-page-layout' does not exist (linked from 'kb-project' via 'related_to')",
-      "id": "REV-REF-037"
+      "id": "REV-REF-031"
     },
     {
       "check": "referential-integrity",
@@ -385,7 +325,7 @@
       "target": "wiki-link",
       "edge_type": "related_to",
       "description": "Wiki-link target 'wiki-link' does not exist (linked from 'kb-project' via 'related_to')",
-      "id": "REV-REF-038"
+      "id": "REV-REF-032"
     },
     {
       "check": "referential-integrity",
@@ -393,9 +333,9 @@
       "rule": "orphan-wikilink",
       "source_node": "kb-substrate-harvest",
       "target": "kb-core-harvest-policy",
-      "edge_type": "related_to",
-      "description": "Wiki-link target 'kb-core-harvest-policy' does not exist (linked from 'kb-substrate-harvest' via 'related_to')",
-      "id": "REV-REF-039"
+      "edge_type": "uses",
+      "description": "Wiki-link target 'kb-core-harvest-policy' does not exist (linked from 'kb-substrate-harvest' via 'uses')",
+      "id": "REV-REF-033"
     },
     {
       "check": "referential-integrity",
@@ -403,9 +343,9 @@
       "rule": "orphan-wikilink",
       "source_node": "kb-substrate-harvest",
       "target": "kb-substrate-sha-detection",
-      "edge_type": "related_to",
-      "description": "Wiki-link target 'kb-substrate-sha-detection' does not exist (linked from 'kb-substrate-harvest' via 'related_to')",
-      "id": "REV-REF-040"
+      "edge_type": "uses",
+      "description": "Wiki-link target 'kb-substrate-sha-detection' does not exist (linked from 'kb-substrate-harvest' via 'uses')",
+      "id": "REV-REF-034"
     },
     {
       "check": "referential-integrity",
@@ -415,7 +355,7 @@
       "target": "kb-substrate-harvest-escalation",
       "edge_type": "related_to",
       "description": "Wiki-link target 'kb-substrate-harvest-escalation' does not exist (linked from 'kb-substrate' via 'related_to')",
-      "id": "REV-REF-041"
+      "id": "REV-REF-035"
     },
     {
       "check": "referential-integrity",
@@ -425,7 +365,7 @@
       "target": "kb-substrate-sha-detection",
       "edge_type": "related_to",
       "description": "Wiki-link target 'kb-substrate-sha-detection' does not exist (linked from 'kb-substrate' via 'related_to')",
-      "id": "REV-REF-042"
+      "id": "REV-REF-036"
     },
     {
       "check": "referential-integrity",
@@ -433,9 +373,9 @@
       "rule": "orphan-wikilink",
       "source_node": "kb-substrate",
       "target": "kb-substrate-compile-graph",
-      "edge_type": "related_to",
-      "description": "Wiki-link target 'kb-substrate-compile-graph' does not exist (linked from 'kb-substrate' via 'related_to')",
-      "id": "REV-REF-043"
+      "edge_type": "contains",
+      "description": "Wiki-link target 'kb-substrate-compile-graph' does not exist (linked from 'kb-substrate' via 'contains')",
+      "id": "REV-REF-037"
     },
     {
       "check": "referential-integrity",
@@ -443,9 +383,9 @@
       "rule": "orphan-wikilink",
       "source_node": "kb-substrate",
       "target": "kb-substrate-timeline",
-      "edge_type": "related_to",
-      "description": "Wiki-link target 'kb-substrate-timeline' does not exist (linked from 'kb-substrate' via 'related_to')",
-      "id": "REV-REF-044"
+      "edge_type": "contains",
+      "description": "Wiki-link target 'kb-substrate-timeline' does not exist (linked from 'kb-substrate' via 'contains')",
+      "id": "REV-REF-038"
     },
     {
       "check": "referential-integrity",
@@ -453,9 +393,9 @@
       "rule": "orphan-wikilink",
       "source_node": "kb-substrate",
       "target": "kb-substrate-state-classification",
-      "edge_type": "related_to",
-      "description": "Wiki-link target 'kb-substrate-state-classification' does not exist (linked from 'kb-substrate' via 'related_to')",
-      "id": "REV-REF-045"
+      "edge_type": "contains",
+      "description": "Wiki-link target 'kb-substrate-state-classification' does not exist (linked from 'kb-substrate' via 'contains')",
+      "id": "REV-REF-039"
     },
     {
       "check": "referential-integrity",
@@ -463,9 +403,9 @@
       "rule": "orphan-wikilink",
       "source_node": "kb-substrate",
       "target": "kb-substrate-migration",
-      "edge_type": "related_to",
-      "description": "Wiki-link target 'kb-substrate-migration' does not exist (linked from 'kb-substrate' via 'related_to')",
-      "id": "REV-REF-046"
+      "edge_type": "contains",
+      "description": "Wiki-link target 'kb-substrate-migration' does not exist (linked from 'kb-substrate' via 'contains')",
+      "id": "REV-REF-040"
     },
     {
       "check": "referential-integrity",
@@ -473,9 +413,9 @@
       "rule": "orphan-wikilink",
       "source_node": "kb-substrate",
       "target": "kb-substrate-validation",
-      "edge_type": "related_to",
-      "description": "Wiki-link target 'kb-substrate-validation' does not exist (linked from 'kb-substrate' via 'related_to')",
-      "id": "REV-REF-047"
+      "edge_type": "contains",
+      "description": "Wiki-link target 'kb-substrate-validation' does not exist (linked from 'kb-substrate' via 'contains')",
+      "id": "REV-REF-041"
     },
     {
       "check": "referential-integrity",
@@ -483,9 +423,9 @@
       "rule": "orphan-wikilink",
       "source_node": "kb-workflow-change-reconciliation",
       "target": "kb-history-lesson-promotion",
-      "edge_type": "related_to",
-      "description": "Wiki-link target 'kb-history-lesson-promotion' does not exist (linked from 'kb-workflow-change-reconciliation' via 'related_to')",
-      "id": "REV-REF-048"
+      "edge_type": "uses",
+      "description": "Wiki-link target 'kb-history-lesson-promotion' does not exist (linked from 'kb-workflow-change-reconciliation' via 'uses')",
+      "id": "REV-REF-042"
     },
     {
       "check": "referential-integrity",
@@ -493,9 +433,9 @@
       "rule": "orphan-wikilink",
       "source_node": "kb-workflow-onboard",
       "target": "kb-workflow-greenfield-mode",
-      "edge_type": "related_to",
-      "description": "Wiki-link target 'kb-workflow-greenfield-mode' does not exist (linked from 'kb-workflow-onboard' via 'related_to')",
-      "id": "REV-REF-049"
+      "edge_type": "uses",
+      "description": "Wiki-link target 'kb-workflow-greenfield-mode' does not exist (linked from 'kb-workflow-onboard' via 'uses')",
+      "id": "REV-REF-043"
     },
     {
       "check": "referential-integrity",
@@ -503,9 +443,9 @@
       "rule": "orphan-wikilink",
       "source_node": "kb-workflow-onboard",
       "target": "kb-workflow-brownfield-mode",
-      "edge_type": "related_to",
-      "description": "Wiki-link target 'kb-workflow-brownfield-mode' does not exist (linked from 'kb-workflow-onboard' via 'related_to')",
-      "id": "REV-REF-050"
+      "edge_type": "uses",
+      "description": "Wiki-link target 'kb-workflow-brownfield-mode' does not exist (linked from 'kb-workflow-onboard' via 'uses')",
+      "id": "REV-REF-044"
     },
     {
       "check": "referential-integrity",
@@ -515,7 +455,7 @@
       "target": "kb-history-incident-lifecycle",
       "edge_type": "related_to",
       "description": "Wiki-link target 'kb-history-incident-lifecycle' does not exist (linked from 'kb-workflow-status-lifecycle-separation' via 'related_to')",
-      "id": "REV-REF-051"
+      "id": "REV-REF-045"
     },
     {
       "check": "referential-integrity",
@@ -525,7 +465,7 @@
       "target": "kb-history-lesson-promotion",
       "edge_type": "related_to",
       "description": "Wiki-link target 'kb-history-lesson-promotion' does not exist (linked from 'kb-workflow-change-reconciliation-flow' via 'related_to')",
-      "id": "REV-REF-052"
+      "id": "REV-REF-046"
     },
     {
       "check": "referential-integrity",
@@ -535,7 +475,7 @@
       "target": "kb-workflow-greenfield-mode",
       "edge_type": "related_to",
       "description": "Wiki-link target 'kb-workflow-greenfield-mode' does not exist (linked from 'kb-workflow-onboard-flow' via 'related_to')",
-      "id": "REV-REF-053"
+      "id": "REV-REF-047"
     },
     {
       "check": "referential-integrity",
@@ -545,7 +485,7 @@
       "target": "kb-workflow-brownfield-mode",
       "edge_type": "related_to",
       "description": "Wiki-link target 'kb-workflow-brownfield-mode' does not exist (linked from 'kb-workflow-onboard-flow' via 'related_to')",
-      "id": "REV-REF-054"
+      "id": "REV-REF-048"
     },
     {
       "check": "referential-integrity",
@@ -555,7 +495,7 @@
       "target": "kb-workflow-greenfield-mode",
       "edge_type": "related_to",
       "description": "Wiki-link target 'kb-workflow-greenfield-mode' does not exist (linked from 'kb-workflow' via 'related_to')",
-      "id": "REV-REF-055"
+      "id": "REV-REF-049"
     },
     {
       "check": "referential-integrity",
@@ -565,7 +505,7 @@
       "target": "kb-workflow-brownfield-mode",
       "edge_type": "related_to",
       "description": "Wiki-link target 'kb-workflow-brownfield-mode' does not exist (linked from 'kb-workflow' via 'related_to')",
-      "id": "REV-REF-056"
+      "id": "REV-REF-050"
     },
     {
       "id": "REV-INT-001",
@@ -654,37 +594,13 @@
       "rule": "intent-observed-mismatch",
       "node": "kb-workflow-onboard-flow",
       "description": "Intent node 'kb-workflow-onboard-flow' contains observed sections (Runtime Path/Source Evidence) but also contains progress disclaimers \u2014 intended vs observed are flattened into one page"
-    },
-    {
-      "id": "ERR-CAN-001",
-      "check": "canonical-authority",
-      "severity": "ERROR",
-      "rule": "canonical-duplication",
-      "node": "kb-history-decision-lifecycle",
-      "description": "Node with canonical_source still redefines enums from 'docs/design/spec/history-model.md#Decision Lifecycle' (overlap: ['active', 'deprecated', 'superseded'])"
-    },
-    {
-      "id": "ERR-CAN-002",
-      "check": "canonical-authority",
-      "severity": "ERROR",
-      "rule": "canonical-duplication",
-      "node": "kb-workflow-change-lifecycle",
-      "description": "Node with canonical_source still redefines enums from 'docs/design/spec/workflow-model.md#Change Lifecycle States' (overlap: ['active', 'change_state', 'implemented', 'in_progress', 'planned', 'reconciled', 'status'])"
-    },
-    {
-      "id": "ERR-CAN-003",
-      "check": "canonical-authority",
-      "severity": "ERROR",
-      "rule": "canonical-duplication",
-      "node": "kb-workflow-status-lifecycle-separation",
-      "description": "Node with canonical_source still redefines enums from 'docs/design/spec/workflow-model.md#Change Lifecycle States' (overlap: ['active', 'change_state', 'decision_state', 'implemented', 'in_progress', 'incident_state', 'needs_review', 'planned', 'reconciled', 'status'])"
     }
   ],
   "checks_run": {
     "referential-integrity": {
-      "total": 56,
+      "total": 50,
       "passed": 0,
-      "failed": 56
+      "failed": 50
     },
     "required-artifact-integrity": {
       "total": 11,
@@ -703,8 +619,8 @@
     },
     "canonical-authority": {
       "total": 25,
-      "passed": 22,
-      "failed": 3
+      "passed": 25,
+      "failed": 0
     },
     "report-consistency": {
       "total": 5,
@@ -713,5 +629,5 @@
     }
   },
   "kb_path": "docs/brain/projects/kodebrain",
-  "validated_at": "2026-08-07T10:07:29.977250+00:00"
+  "validated_at": "2026-08-07T12:13:38.898575+00:00"
 }

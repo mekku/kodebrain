@@ -39,17 +39,17 @@ The primary users are: human developers and project owners, coding agents, revie
                               │
                               │  (canonical spec root)
                               │
-   ┌────────┬────────┬────────┼────────┬────────┐
-   │        │        │        │        │        │
-   ▼        ▼        ▼        ▼        ▼        ▼
-[knowledge] [project] [workflow] [history] [governance]
-   │        │        │        │        │
-   ▼        ▼        ▼        ▼        ▼
- meaning   shape    process  temporal   rules
-  of        of       that     records   that
-knowledge project  mutate/  produced   govern
-                   use KB   by those   the KB
-                           processes
+   ┌────────┬────────┬────────┼────────┬────────┬────────┐
+   │        │        │        │        │        │        │
+   ▼        ▼        ▼        ▼        ▼        ▼        ▼
+[knowledge] [project] [workflow] [history] [governance] [validation]
+   │        │        │        │        │             │
+   ▼        ▼        ▼        ▼        ▼             ▼
+ meaning   shape    process  temporal   rules      severity
+  of        of       that     records   that       model,
+knowledge project  mutate/  produced   govern   completion
+                   use KB   by those   the KB    states,
+                           processes            findings
 ```
 
 Each `[bracket]` links to a canonical child specification. The parent relationship in the diagram matches the `parent: root` metadata in each child — one level, flat.
@@ -63,7 +63,7 @@ Each `[bracket]` links to a canonical child specification. The parent relationsh
 | Workflow | What *processes* mutate or use knowledge? | Onboarding, change lifecycle, status/lifecycle separation, agent behavior |
 | History | What *temporal records* do those processes produce? | Decision records/lineage, incident records/lifecycle, milestone records, change records, events, timeline, retrieval |
 | Governance | What *rules* govern the KB itself? | Precedence, compatibility, non-goals, success criteria, spec authority |
-| Validation Gate | What *validates* onboard completion? | Severity model, completion states, canonical_source, projection rules |
+| Validation Gate | What *validates* onboard completion? | Severity model (ERROR/DRIFT/REVIEW), completion states, finding model |
 
 **Schema** (`schema/node.schema.json`) is the machine contract derived from all specs — it does not define semantics independently.
 
@@ -78,7 +78,7 @@ Each `[bracket]` links to a canonical child specification. The parent relationsh
 | **Workflow Model** | [`spec/workflow-model.md`](spec/workflow-model.md) | Onboarding (greenfield/brownfield), change lifecycle, status/lifecycle, agent behavior |
 | **History Model** | [`spec/history-model.md`](spec/history-model.md) | 4th question, record types, decision lineage, incidents, milestones, events, timeline, retrieval |
 | **Governance** | [`spec/governance.md`](spec/governance.md) | Precedence, compatibility, non-goals, success criteria, spec authority |
-| **Onboard Validation Gate** | [`spec/onboard-validation-gate.md`](spec/onboard-validation-gate.md) | Validation gate process, severity model (ERROR/DRIFT/REVIEW), completion states, canonical_source, projection rules |
+| **Onboard Validation Gate** | [`spec/onboard-validation-gate.md`](spec/onboard-validation-gate.md) | Severity model (ERROR/DRIFT/REVIEW), completion states, finding model |
 
 ### Other Design Documents
 

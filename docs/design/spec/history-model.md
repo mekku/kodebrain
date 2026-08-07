@@ -12,6 +12,9 @@ owns:
   - temporal.events
   - temporal.timeline
   - temporal.retrieval
+exports:
+  decision.record: Decision Lifecycle
+  incident.lifecycle: Incident Lifecycle
 ---
 
 # Project History Model
