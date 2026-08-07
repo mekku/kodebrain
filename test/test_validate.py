@@ -10,7 +10,9 @@ SKILL_SCRIPTS = Path(__file__).resolve().parent.parent / "kodebrain" / "skill" /
 sys.path.insert(0, str(SKILL_SCRIPTS))
 
 from validate import run_validation, check_provenance_consistency
-from intent_inventory import scan_intent_sources, apply_resolution
+from intent_inventory import scan_intent_sources, apply_resolution, _non_negotiable_principles
+
+FIXTURE = Path(__file__).resolve().parent / "fixtures" / "brownfield"
 
 
 # ── helpers ──────────────────────────────────────────────────────────────
@@ -321,6 +323,44 @@ def test_partial_with_note_is_resolved():
         assert result["completion_state"] != "blocked"
 
 
+# ── Gate 2: Intent ↔ Observed comparison ─────────────────────────────────
+
+def test_fixture_has_contradiction():
+    """Brownfield fixture: spec says 'atomic', source says 'NOT atomic'. Drift detectable."""
+    spec_path = FIXTURE / "docs" / "specs" / "product.md"
+    src_path = FIXTURE / "src" / "index.ts"
+
+    spec_text = spec_path.read_text()
+    src_text = src_path.read_text()
+
+    # Extract claims from spec
+    principles = _non_negotiable_principles(spec_text)
+    assert len(principles) > 0, f"No principles extracted from spec"
+
+    # Check: "atomic" claim
+    atomic_claim = [p for p in principles if "atomic" in p.lower()]
+    assert len(atomic_claim) > 0, "Spec should claim atomic increment"
+
+    # Check: source contradicts "atomic"
+    assert "NOT atomic" in src_text, "Fixture source should explicitly contradict spec"
+    assert "// Note: implementation is NOT atomic" in src_text
+
+    # Drift would be: intent="atomic", observed="NOT atomic"
+    # This proves the fixture is valid for Gate 2 semantic comparison.
+
+def test_spec_claims_extracted_correctly():
+    """Non-negotiable principles from the fixture spec include all 3 claims."""
+    spec_text = (FIXTURE / "docs" / "specs" / "product.md").read_text()
+    principles = _non_negotiable_principles(spec_text)
+
+    # 3 principles: counters start at 0, atomic, max 999999
+    assert len(principles) >= 2, f"Expected >=2 principles, got {len(principles)}: {principles}"
+    has_atomic = any("atomic" in p.lower() for p in principles)
+    has_counter = any("counter" in p.lower() or "start" in p.lower() for p in principles)
+    assert has_atomic, f"Should find 'atomic' claim: {principles}"
+    assert has_counter, f"Should find counter claim: {principles}"
+
+
 # ── Run ──────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -338,6 +378,8 @@ if __name__ == "__main__":
         test_deferred_still_blocks,
         test_partial_without_note_blocks,
         test_partial_with_note_is_resolved,
+        test_fixture_has_contradiction,
+        test_spec_claims_extracted_correctly,
     ]
     failed = 0
     for test in tests:

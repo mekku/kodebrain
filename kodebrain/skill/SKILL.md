@@ -379,7 +379,35 @@ If code clustering conflicts with intended domain boundaries, preserve both and 
 
 Persist progress. Partial mapping is acceptable if gaps are explicit.
 
-**8. Compile graph indexes.** Write `nodes.json`, `edges.json`, and `diagnostics.json`:
+**8. Compare accepted intent against observed source.** For each intent source with `resolution.state: accepted`, read the intent document and compare its claims against observed source files:
+
+1. Extract claims from each accepted intent document:
+   - **Non-negotiable principles** (from `## Non-Negotiable Principles`)
+   - **Technology choices** (named tools, libraries, services)
+   - **State machines / lifecycles** (states, transitions)
+   - **Data model fields** (required fields, types)
+   - **Constraints** (performance, security, invariants)
+
+2. For each claim, check observed source for agreement:
+   - Search source files for evidence of the claimed technology/pattern
+   - If source explicitly contradicts (different technology, missing field, different state machine) → **drift item**
+   - If source is silent (no evidence either way) → note as `unverifiable`, not drift
+   - If source confirms → mark claim as `verified_in_source`
+
+3. Write drift items to `reports/drift.md`. Each drift item:
+   ```markdown
+   ## <claim summary>
+   - **Intent:** <what the spec says> (from `intent_source_path`)
+   - **Observed:** <what source shows> (from `source_file:line`)
+   - **Severity:** HIGH | MED | LOW
+   - **Status:** unresolved | accepted_intent_wins | accepted_source_wins
+   ```
+
+4. Update validation: drift items increment `drift_count` in `validation-result.json`, and `completion_state` becomes `complete_with_drift` (not `complete`).
+
+This step is LLM-driven for v1 — the agent reads accepted intent documents and compares against source. A deterministic comparison engine may replace this in a future version.
+
+**9. Compile graph indexes.** Write `nodes.json`, `edges.json`, and `diagnostics.json`:
 ```bash
 python3 <skill_base_dir>/scripts/compile_graph.py <kb_dir>
 ```
@@ -390,13 +418,13 @@ python3 <skill_base_dir>/scripts/harvest.py \
 ```
 Save `file-hashes.json` from harvest output.
 
-**9. Run validation gate.** The gate is mandatory — onboard may not declare success without passing it:
+**10. Run validation gate.** The gate is mandatory — onboard may not declare success without passing it:
 ```bash
 python3 <skill_base_dir>/scripts/validate.py <kb_dir> --project-root <root>
 ```
 Reports are always rendered during validation. The `--render` flag is accepted for backward compatibility but is no longer required.
 
-**10. Check completion state.** Read `graph/validation-result.json`. The validation gate now includes intent inventory (Check 7) — pending intent resolution produces a BLOCKING_INCOMPLETE finding and blocks completion:
+**11. Check completion state.** Read `graph/validation-result.json`. The validation gate now includes intent inventory (Check 7) — pending intent resolution produces a BLOCKING_INCOMPLETE finding and blocks completion:
 
 - `completion_state: blocked` → print ERROR and BLOCKING_INCOMPLETE findings, tell user to resolve, STOP. Do NOT declare onboard complete.
 - `completion_state: complete_with_drift` → print summary, note drift items
@@ -405,20 +433,20 @@ Reports are always rendered during validation. The `--render` flag is accepted f
 
 Reports (`drift.md`, `needs-review.md`, `knowledge-gaps.md`) are rendered from validation findings during validation — they are pure projections, never independently authored.
 
-**11. Write unmapped-files and suspected-legacy reports.** These are not validation-derived:
+**12. Write unmapped-files and suspected-legacy reports.** These are not validation-derived:
 - `reports/unmapped-files.md` — files not assigned to any domain
 - `reports/suspected-legacy.md` — nodes flagged legacy or unused
 
-**12. Write Obsidian config.** Copy `obsidian-vault-config/graph.json` and `app.json` to `docs/brain/.obsidian/`. Only on first onboard (don't overwrite if already present).
+**13. Write Obsidian config.** Copy `obsidian-vault-config/graph.json` and `app.json` to `docs/brain/.obsidian/`. Only on first onboard (don't overwrite if already present).
 
-**13. Install project-level platform configs.**
+**14. Install project-level platform configs.**
 ```bash
 kodebrain project install <root> 2>/dev/null \
   && echo "Platform configs written." \
   || echo "Tip: pip install kodebrain && kodebrain project install . to set up platform configs."
 ```
 
-**14. Print summary.** Use `validation-result.json` and `intent-sources.json` for completion state, drift, review, and gap counts:
+**15. Print summary.** Use `validation-result.json` and `intent-sources.json` for completion state, drift, review, and gap counts:
 ```
 Kode Brain onboard complete — <project name>
 State:            <completion_state>  (from validation-result.json)
