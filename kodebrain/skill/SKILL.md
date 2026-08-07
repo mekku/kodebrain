@@ -379,33 +379,25 @@ If code clustering conflicts with intended domain boundaries, preserve both and 
 
 Persist progress. Partial mapping is acceptable if gaps are explicit.
 
-**8. Compare accepted intent against observed source.** For each intent source with `resolution.state: accepted`, read the intent document and compare its claims against observed source files:
+**8. Compare accepted intent against observed source.** Run the deterministic comparison script:
 
-1. Extract claims from each accepted intent document:
-   - **Non-negotiable principles** (from `## Non-Negotiable Principles`)
-   - **Technology choices** (named tools, libraries, services)
-   - **State machines / lifecycles** (states, transitions)
-   - **Data model fields** (required fields, types)
-   - **Constraints** (performance, security, invariants)
+```bash
+python3 <skill_base_dir>/scripts/compare_intent.py <root> \
+  --kb-dir docs/brain/projects/<name>/
+```
 
-2. For each claim, check observed source for agreement:
-   - Search source files for evidence of the claimed technology/pattern
-   - If source explicitly contradicts (different technology, missing field, different state machine) → **drift item**
-   - If source is silent (no evidence either way) → note as `unverifiable`, not drift
-   - If source confirms → mark claim as `verified_in_source`
+This script:
+1. Reads accepted intent sources from `intent-sources.json`
+2. Extracts claims: technology references, state machines, data model fields, non-negotiable principles
+3. Searches source files for contradictions (explicit negation patterns, different technology names)
+4. Outputs structured drift findings
 
-3. Write drift items to `reports/drift.md`. Each drift item:
-   ```markdown
-   ## <claim summary>
-   - **Intent:** <what the spec says> (from `intent_source_path`)
-   - **Observed:** <what source shows> (from `source_file:line`)
-   - **Severity:** HIGH | MED | LOW
-   - **Status:** unresolved | accepted_intent_wins | accepted_source_wins
-   ```
+The validator (Check 8) also runs this automatically during validation. Drift items appear in `validation-result.json` with severity `DRIFT`, causing `completion_state: complete_with_drift`.
 
-4. Update validation: drift items increment `drift_count` in `validation-result.json`, and `completion_state` becomes `complete_with_drift` (not `complete`).
-
-This step is LLM-driven for v1 — the agent reads accepted intent documents and compares against source. A deterministic comparison engine may replace this in a future version.
+For claims the deterministic engine cannot resolve (unverifiable or confirmed), the LLM should read the comparison output and supplement with semantic analysis. Focus on:
+- Technology disagreements (spec says X, source uses Y)
+- Missing data model fields (spec defines field, source doesn't implement)
+- Different state machines (spec has states, source has different or missing states)
 
 **9. Compile graph indexes.** Write `nodes.json`, `edges.json`, and `diagnostics.json`:
 ```bash

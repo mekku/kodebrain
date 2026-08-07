@@ -844,6 +844,56 @@ def check_intent_inventory_gate(kb_dir: Path) -> List[Dict]:
     return findings
 
 
+# ── Check 8: Intent ↔ Observed Comparison ──────────────────────────
+
+def check_intent_observed_comparison(kb_dir: Path, project_root: Path) -> List[Dict]:
+    """Deterministic claim extraction for accepted intent sources.
+
+    Runs compare_intent.py logic inline. For each accepted intent source,
+    extracts claims (technology, state machine, data model, non-negotiable
+    principles) and searches source files for contradictions.
+
+    Contradictions become DRIFT findings. Confirmed claims and unverifiable
+    claims are noted but do not block completion.
+    """
+    findings: List[Dict] = []
+
+    # Import inline to avoid circular dependency at module level
+    from compare_intent import compare_accepted_intent
+
+    result = compare_accepted_intent(project_root, kb_dir)
+
+    if "error" in result:
+        # No intent-sources.json or no accepted sources — not an error
+        return findings
+
+    for item in result.get("drift_items", []):
+        contradictions = item.get("contradictions", [])
+        for c in contradictions:
+            findings.append({
+                "id": f"DRF-CMP-{len(findings)+1:03d}",
+                "check": "intent-observed-comparison",
+                "severity": "DRIFT",
+                "rule": "intent-source-contradiction",
+                "node": None,
+                "description": (
+                    f"Intent claim '{item['claim']}' ({item['claim_type']}) "
+                    f"contradicted in {c['source_file']}: "
+                    f"{c['evidence'][:120]}"
+                ),
+                "details": {
+                    "intent_source": item["intent_source"],
+                    "claim": item["claim"],
+                    "claim_type": item["claim_type"],
+                    "severity": item.get("severity", "MED"),
+                    "source_file": c["source_file"],
+                    "match_type": c["match_type"],
+                },
+            })
+
+    return findings
+
+
 def run_validation(kb_dir: Path, project_root: Path) -> Dict:
     graph_dir = kb_dir / "graph"
 
@@ -885,6 +935,11 @@ def run_validation(kb_dir: Path, project_root: Path) -> Dict:
     all_findings.extend(int_inv_findings)
     check_counts["intent-inventory-gate"] = 1
 
+    # Check 8: Intent ↔ Observed comparison — deterministic claim extraction for accepted intent.
+    int_cmp_findings = check_intent_observed_comparison(kb_dir, project_root)
+    all_findings.extend(int_cmp_findings)
+    check_counts["intent-observed-comparison"] = 1
+
     # Render reports from validation findings BEFORE report consistency check.
     # Reports are derived views — stale derived artifacts must not block validation.
     # The renderer rebuilds them; the postcondition verifies they match.
@@ -916,7 +971,7 @@ def run_validation(kb_dir: Path, project_root: Path) -> Dict:
     for check_name in ["referential-integrity", "required-artifact-integrity",
                         "provenance-consistency", "intent-observed-consistency",
                         "canonical-authority", "report-consistency",
-                        "intent-inventory-gate"]:
+                        "intent-inventory-gate", "intent-observed-comparison"]:
         check_findings = [f for f in all_findings if f["check"] == check_name]
         total = check_counts.get(check_name, 0)
         checks_run[check_name] = {

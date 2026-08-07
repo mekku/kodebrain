@@ -361,6 +361,90 @@ def test_spec_claims_extracted_correctly():
     assert has_counter, f"Should find counter claim: {principles}"
 
 
+def test_compare_intent_detects_atomic_drift():
+    """End-to-end: accept spec, run compare, detect atomic contradiction."""
+    from compare_intent import compare_accepted_intent
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        kb = root / "docs" / "brain" / "projects" / "test"
+
+        # Copy fixture
+        import shutil
+        (root / "docs" / "specs").mkdir(parents=True)
+        (root / "src").mkdir(parents=True)
+        shutil.copy(FIXTURE / "docs" / "specs" / "product.md",
+                    root / "docs" / "specs" / "product.md")
+        shutil.copy(FIXTURE / "src" / "index.ts",
+                    root / "src" / "index.ts")
+
+        # Run inventory + accept
+        result1 = scan_intent_sources(root, kb)
+        (kb / "graph").mkdir(parents=True, exist_ok=True)
+        (kb / "graph" / "intent-sources.json").write_text(json.dumps(result1))
+        apply_resolution(kb, "docs/specs/product.md", "accepted")
+
+        # Re-scan to update resolution
+        result2 = scan_intent_sources(root, kb)
+        (kb / "graph" / "intent-sources.json").write_text(json.dumps(result2))
+
+        # Run comparison
+        comparison = compare_accepted_intent(root, kb)
+        assert comparison["drift_count"] >= 1, \
+            f"Expected >=1 drift, got {comparison['drift_count']}"
+
+        # The atomic claim specifically should be HIGH severity drift
+        atomic_drifts = [d for d in comparison["drift_items"]
+                        if "atomic" in d["claim"].lower()]
+        assert len(atomic_drifts) >= 1, \
+            f"Atomic claim should be flagged as drift: {comparison['drift_items']}"
+        assert atomic_drifts[0]["severity"] == "HIGH"
+
+
+def test_validate_includes_comparison_drift():
+    """validate.py Check 8 surfaces drift from intent↔observed comparison."""
+    import shutil, tempfile
+
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        kb = _kb_dir(root)
+
+        # Copy fixture source
+        (root / "docs" / "specs").mkdir(parents=True)
+        (root / "src").mkdir(parents=True)
+        shutil.copy(FIXTURE / "docs" / "specs" / "product.md",
+                    root / "docs" / "specs" / "product.md")
+        shutil.copy(FIXTURE / "src" / "index.ts",
+                    root / "src" / "index.ts")
+
+        # Inventory + accept
+        (kb / "graph").mkdir(parents=True, exist_ok=True)
+        inv = scan_intent_sources(root, kb)
+        (kb / "graph" / "intent-sources.json").write_text(json.dumps(inv))
+        apply_resolution(kb, "docs/specs/product.md", "accepted")
+        inv2 = scan_intent_sources(root, kb)
+        (kb / "graph" / "intent-sources.json").write_text(json.dumps(inv2))
+
+        # Run validation
+        result = run_validation(kb, root)
+
+        # Check 8 findings should include DRIFT from atomic contradiction
+        cmp_findings = [f for f in result.get("findings", [])
+                        if f.get("check") == "intent-observed-comparison"]
+        drift_findings = [f for f in cmp_findings if f["severity"] == "DRIFT"]
+
+        drift_count = result.get("summary", {}).get("drift_count", 0)
+        assert len(drift_findings) >= 1, \
+            f"Expected >=1 DRIFT from comparison, got {len(drift_findings)}"
+        assert drift_count >= 1, \
+            f"Expected drift_count >=1, got {drift_count}"
+        # With drift present, state should be complete_with_drift
+        # (may be blocked if other errors exist in minimal fixture)
+        assert result["completion_state"] in ("complete_with_drift", "blocked"), \
+            f"Expected complete_with_drift or blocked, got {result['completion_state']}"
+
+
 # ── Run ──────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -380,6 +464,8 @@ if __name__ == "__main__":
         test_partial_with_note_is_resolved,
         test_fixture_has_contradiction,
         test_spec_claims_extracted_correctly,
+        test_compare_intent_detects_atomic_drift,
+        test_validate_includes_comparison_drift,
     ]
     failed = 0
     for test in tests:
