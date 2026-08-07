@@ -1,7 +1,12 @@
+---
+spec_role: historical
+superseded_by: spec/knowledge-model.md
+---
+
 # Taxonomy
 
-> **Superseded in part by `docs/design/spec.md`.** See that document for vNext behavior.
-> Provenance is now separate from confidence. Node IDs use flat hyphen-separated format (`domain-slug-type-slug`).
+> **Superseded in part by [`spec/knowledge-model.md`](spec/knowledge-model.md).**
+> Provenance is now separate from confidence. Node IDs use flat hyphen-separated format.
 > This document remains reference for node/edge type semantics.
 
 Finalized types, labels, and their precise semantics.

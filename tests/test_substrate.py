@@ -2579,7 +2579,10 @@ spec_role: canonical-root
         })
         result = mod.validate(docs)
         assert not result["valid"]
-        assert any("single-root" in e["rule"] for e in result["errors"])
+        assert any(
+            r in e["rule"] for e in result["errors"]
+            for r in ["single-root", "duplicate-spec-id"]
+        )
 
     def test_duplicate_concern_owner_errors(self, tmp_path: Path) -> None:
         mod = _load_script(_SPEC_VALIDATOR_PATH)
@@ -2594,7 +2597,8 @@ spec_role: canonical-root
 spec_id: history-a
 spec_role: canonical
 parent: root
-concern: history
+owns:
+  - history.records
 ---
 # History A
 """,
@@ -2602,14 +2606,15 @@ concern: history
 spec_id: history-b
 spec_role: canonical
 parent: root
-concern: history
+owns:
+  - history.records
 ---
 # History B
 """,
         })
         result = mod.validate(docs)
         assert not result["valid"]
-        assert any("single-owner" in e["rule"] for e in result["errors"])
+        assert any("duplicate-owner" in e["rule"] for e in result["errors"])
 
     def test_orphaned_canonical_warns(self, tmp_path: Path) -> None:
         mod = _load_script(_SPEC_VALIDATOR_PATH)
@@ -2676,3 +2681,63 @@ spec_role: canonical
         })
         result = mod.validate(docs)
         assert any("parent-required" in w["rule"] for w in result["warnings"])
+
+    def test_real_repo_passes_with_zero_errors(self) -> None:
+        """The actual docs/design/ directory must validate with 0 errors, 0 warnings."""
+        mod = _load_script(_SPEC_VALIDATOR_PATH)
+        docs_dir = Path(__file__).parent.parent / "docs" / "design"
+        result = mod.validate(docs_dir)
+        assert result["valid"], f"Real docs have errors: {result['errors']}"
+        assert len(result["warnings"]) == 0, f"Real docs have warnings: {result['warnings']}"
+        assert len(result["canonical_docs"]) >= 5, f"Expected 5+ canonical docs, got {len(result['canonical_docs'])}"
+
+    def test_parent_chain_broken_detected(self, tmp_path: Path) -> None:
+        """Parent referencing non-existent spec must fail reachability."""
+        mod = _load_script(_SPEC_VALIDATOR_PATH)
+        docs = self._make_docs(tmp_path, {
+            "spec.md": """---
+spec_id: root
+spec_role: canonical-root
+---
+# Root
+""",
+            "orphan.md": """---
+spec_id: orphan
+spec_role: canonical
+parent: nonexistent
+---
+# Orphan
+""",
+        })
+        result = mod.validate(docs)
+        assert not result["valid"]
+        assert any("parent-chain-broken" in e["rule"] for e in result["errors"])
+
+    def test_parent_chain_cycle_detected(self, tmp_path: Path) -> None:
+        """Cycle in parent chain must be detected."""
+        mod = _load_script(_SPEC_VALIDATOR_PATH)
+        docs = self._make_docs(tmp_path, {
+            "spec.md": """---
+spec_id: root
+spec_role: canonical-root
+---
+# Root
+""",
+            "a.md": """---
+spec_id: a
+spec_role: canonical
+parent: b
+---
+# A
+""",
+            "b.md": """---
+spec_id: b
+spec_role: canonical
+parent: a
+---
+# B
+""",
+        })
+        result = mod.validate(docs)
+        assert not result["valid"]
+        assert any("parent-chain-cycle" in e["rule"] for e in result["errors"])

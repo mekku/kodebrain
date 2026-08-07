@@ -1,6 +1,11 @@
+---
+spec_role: decision-records
+superseded_by: spec/knowledge-model.md
+---
+
 # Open Decisions
 
-> **Superseded in part by `docs/design/spec.md`.** vNext has resolved several items below.
+> **Decision records.** vNext has resolved several items below.
 > See individual OD items for current status.
 
 Architectural decisions. Resolved decisions live as `decision` nodes in the KB itself.

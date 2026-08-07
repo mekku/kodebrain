@@ -2,14 +2,14 @@
 """
 kodebrain spec-validator — deterministic specification authority checker.
 
-Scans docs/design/ for spec_role frontmatter and validates structural rules:
-  - every canonical spec is reachable from the root
-  - no concern has multiple canonical owners
+Scans docs/ for spec_role frontmatter and validates structural rules:
+  - every canonical spec declares a parent (unless root)
+  - parent-chain reachability to root (no broken links, no cycles)
+  - no concern has multiple canonical owners (owns[] list)
   - deprecated/superseded specs identify their replacement
   - implementation plans reference the canonical spec they implement
-  - canonical child pages declare a parent
 
-Does NOT check semantic consistency (that's for LLM review). Only structure.
+Uses the shared frontmatter.py parser (single parser for whole system).
 
 Usage:
   python3 spec_validator.py <docs_dir>                # validate
@@ -19,32 +19,12 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import re
+import json
 import sys
 from pathlib import Path
 from typing import Any
 
-# ── Frontmatter parsing ───────────────────────────────────────────────────────
-
-_FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
-
-
-def _parse_frontmatter(text: str) -> dict[str, Any]:
-    m = _FRONTMATTER_RE.match(text)
-    if not m:
-        return {}
-    fm: dict[str, Any] = {}
-    for line in m.group(1).splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        if ":" in line:
-            key, _, value = line.partition(":")
-            key = key.strip()
-            value = value.strip().strip('"').strip("'")
-            fm[key] = value
-    return fm
-
+from frontmatter import parse as _parse_frontmatter
 
 # ── Rule checks ───────────────────────────────────────────────────────────────
 
@@ -58,13 +38,12 @@ def validate(docs_dir: Path) -> dict[str, Any]:
         "errors": [{rule, doc, detail}],
         "warnings": [{rule, doc, detail}],
         "canonical_docs": [path],
-        "orphaned_canonical": [path],
-        "duplicate_owners": [{concern, docs}],
+        "reachability": {spec_id: reachable_to_root},
+        "cycles": [spec_ids],
       }
     """
     errors: list[dict] = []
     warnings: list[dict] = []
-    canonical_docs: list[str] = []
     docs_with_role: list[tuple[str, dict]] = []
 
     # Collect all .md files with spec_role frontmatter
@@ -73,69 +52,156 @@ def validate(docs_dir: Path) -> dict[str, Any]:
             text = md.read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
-        fm = _parse_frontmatter(text)
+        fm, _ = _parse_frontmatter(text)
         if "spec_role" in fm:
             docs_with_role.append((str(md.relative_to(docs_dir)), fm))
 
-    # ── Rule: every canonical spec must be reachable from root ────────────────
     _canonical_roles = {"canonical", "canonical-root"}
-    canonical = [
-        (path, fm) for path, fm in docs_with_role
-        if fm.get("spec_role") in _canonical_roles
-    ]
 
-    # Find root
-    roots = [d for d in canonical if d[1].get("spec_id") == "root"]
+    # ── Build spec index ─────────────────────────────────────────────────────
+    spec_index: dict[str, dict] = {}  # spec_id → {path, fm, role, parent, owns}
+    duplicate_spec_ids: list[tuple[str, str, str]] = []  # [(spec_id, path1, path2)]
+    for path, fm in docs_with_role:
+        sid = fm.get("spec_id", "")
+        if sid:
+            if sid in spec_index:
+                duplicate_spec_ids.append((sid, spec_index[sid]["path"], path))
+                continue
+
+            # Parse owns as list (shared parser handles multi-line YAML)
+            owns_raw = fm.get("owns", [])
+            owns: list[str] = []
+            if isinstance(owns_raw, list):
+                owns = owns_raw
+            elif isinstance(owns_raw, str) and owns_raw:
+                owns = [o.strip() for o in owns_raw.split(",") if o.strip()]
+
+            spec_index[sid] = {
+                "path": path,
+                "role": fm.get("spec_role", ""),
+                "parent": fm.get("parent", ""),
+                "owns": owns,
+            }
+
+    # Report duplicate spec_ids
+    for sid, path1, path2 in duplicate_spec_ids:
+        errors.append({
+            "rule": "duplicate-spec-id",
+            "doc": f"{path1}, {path2}",
+            "detail": f"spec_id '{sid}' declared in multiple documents.",
+        })
+
+    # ── Rule: canonical root must exist ──────────────────────────────────────
+    canonical = {
+        sid: info for sid, info in spec_index.items()
+        if info["role"] in _canonical_roles
+    }
+
+    roots = [sid for sid, info in canonical.items() if sid == "root"]
     if not roots:
         warnings.append({
             "rule": "root-required",
             "doc": "-",
-            "detail": "No document with spec_id: root and spec_role: canonical found. Add one.",
+            "detail": "No document with spec_id: root found. Add one.",
         })
     elif len(roots) > 1:
         errors.append({
             "rule": "single-root",
-            "doc": ", ".join(r[0] for r in roots),
-            "detail": "Multiple canonical roots found. Exactly one is required.",
+            "doc": ", ".join(spec_index[r]["path"] for r in roots),
+            "detail": "Multiple spec_id: root found. Exactly one required.",
         })
 
-    # Check that all canonical docs have a parent (unless root)
-    for path, fm in canonical:
-        spec_id = fm.get("spec_id", path)
-        parent = fm.get("parent", "")
-        is_root = spec_id == "root"
-
-        if not is_root and not parent:
+    # ── Rule: canonical docs must declare parent (unless root) ───────────────
+    for sid, info in canonical.items():
+        if sid == "root":
+            continue
+        if not info["parent"]:
             warnings.append({
                 "rule": "parent-required",
-                "doc": path,
-                "detail": f"Canonical spec '{spec_id}' has no parent. Add parent: <parent-id>.",
+                "doc": info["path"],
+                "detail": f"Canonical spec '{sid}' has no parent. Add parent: <parent-id>.",
             })
 
-    canonical_docs = [path for path, _ in canonical]
+    # ── Rule: parent-chain reachability to root ──────────────────────────────
+    reachability: dict[str, str] = {}  # spec_id → "root" | "broken:<id>" | "cycle"
+    cycles: list[list[str]] = []
 
-    # ── Rule: no duplicate canonical owners for the same concern ──────────────
-    # A "concern" is identified by the 'owns' list
-    concern_owners: dict[str, list[str]] = {}
-    for path, fm in docs_with_role:
-        role = fm.get("spec_role", "")
-        if role not in _canonical_roles:
-            continue
-        concern = fm.get("concern", "")
-        if not concern:
-            continue
-        concern_owners.setdefault(concern, []).append(path)
+    def _trace_to_root(sid: str, visited: list[str]) -> str:
+        if sid in visited:
+            cycles.append(visited + [sid])
+            return f"cycle:{sid}"
+        if sid not in spec_index:
+            return f"broken:{sid}"
+        info = spec_index[sid]
+        parent = info["parent"]
+        if not parent:
+            if info["role"] in _canonical_roles and sid != "root":
+                return "no-parent"
+            return "root" if sid == "root" else "no-parent"
+        if parent not in spec_index:
+            return f"broken:{parent}"
+        parent_info = spec_index[parent]
+        if parent_info["role"] not in _canonical_roles:
+            warnings.append({
+                "rule": "parent-not-canonical",
+                "doc": info["path"],
+                "detail": f"Parent '{parent}' is not canonical (role: {parent_info['role']}).",
+            })
+        return _trace_to_root(parent, visited + [sid])
 
-    duplicates = {c: docs for c, docs in concern_owners.items() if len(docs) > 1}
-    if duplicates:
-        for concern, docs in duplicates.items():
+    for sid in canonical:
+        reachability[sid] = _trace_to_root(sid, [])
+
+    broken = {sid: r for sid, r in reachability.items() if r != "root"}
+    for sid, reason in broken.items():
+        if reason.startswith("broken:"):
+            missing = reason.split(":", 1)[1]
             errors.append({
-                "rule": "single-owner",
-                "doc": ", ".join(docs),
-                "detail": f"Concern '{concern}' has {len(docs)} canonical owners. Exactly one required.",
+                "rule": "parent-chain-broken",
+                "doc": spec_index[sid]["path"],
+                "detail": f"Parent '{spec_index[sid]['parent']}' not found (looking for '{missing}').",
             })
+        elif reason.startswith("cycle:"):
+            errors.append({
+                "rule": "parent-chain-cycle",
+                "doc": spec_index[sid]["path"],
+                "detail": f"Parent chain contains cycle: {' → '.join(reason.split(':', 1)[1].split(','))}",
+            })
+        elif reason == "no-parent":
+            # Already warned above as parent-required
+            pass
 
-    # ── Rule: deprecated/superseded specs identify their replacement ──────────
+    if cycles:
+        warnings.append({
+            "rule": "cycles-detected",
+            "doc": ", ".join(spec_index.get(c[0], {}).get("path", c[0]) for c in cycles if c),
+            "detail": f"{len(cycles)} cycle(s) in spec parent chain.",
+        })
+
+    # ── Rule: no duplicate canonical owners for the same concern ─────────────
+    concern_owners: dict[str, list[str]] = {}  # concern → [spec_id]
+    for sid, info in canonical.items():
+        for concern in info["owns"]:
+            concern_owners.setdefault(concern, []).append(sid)
+
+    duplicates = {c: owners for c, owners in concern_owners.items() if len(owners) > 1}
+    for concern, owners in duplicates.items():
+        errors.append({
+            "rule": "duplicate-owner",
+            "doc": ", ".join(spec_index[o]["path"] for o in owners),
+            "detail": f"Concern '{concern}' owned by {len(owners)} canonical specs. Exactly one required.",
+        })
+
+    # ── Rule: deprecated/superseded specs identify replacement ────────────────
+    for sid, info in spec_index.items():
+        role = info["role"]
+        if role in ("historical", "superseded", "deprecated"):
+            replaced_by = info.get("parent", "") or ""  # Hmm, this isn't right
+            # Check the actual superseded_by field from frontmatter — but it's
+            # not stored in spec_index. Let me add it.
+            pass  # Fixed below
+
+    # Re-scan for superseded_by (not in spec_index since no spec_id required)
     for path, fm in docs_with_role:
         role = fm.get("spec_role", "")
         if role in ("historical", "superseded", "deprecated"):
@@ -144,44 +210,37 @@ def validate(docs_dir: Path) -> dict[str, Any]:
                 warnings.append({
                     "rule": "superseded-no-replacement",
                     "doc": path,
-                    "detail": f"Spec with role '{role}' does not declare superseded_by. Add replacement reference.",
+                    "detail": f"Spec with role '{role}' does not declare superseded_by.",
                 })
 
-    # ── Rule: implementation plans reference the canonical spec ──────────────
+    # ── Rule: implementation plans reference canonical spec ───────────────────
     for path, fm in docs_with_role:
         role = fm.get("spec_role", "")
         if role == "implementation-plan":
             implements = fm.get("implements", "")
-            if not implements:
+            if isinstance(implements, list):
+                implements_list = implements
+            elif isinstance(implements, str) and implements:
+                implements_list = [i.strip() for i in implements.split(",") if i.strip()]
+            else:
+                implements_list = []
+            if not implements_list:
                 warnings.append({
                     "rule": "plan-no-reference",
                     "doc": path,
                     "detail": "Implementation plan does not declare which canonical spec it implements.",
                 })
-
-    # ── Rule: orphaned canonical docs (no other doc references them as parent)─
-    all_parents: set[str] = set()
-    for _, fm in docs_with_role:
-        parent = fm.get("parent", "")
-        if parent:
-            all_parents.add(parent)
-
-    spec_ids: dict[str, str] = {}
-    for path, fm in canonical:
-        sid = fm.get("spec_id", "")
-        if sid:
-            spec_ids[sid] = path
-
-    orphaned = [
-        sid for sid, path in spec_ids.items()
-        if sid != "root" and sid not in all_parents
-    ]
-    if orphaned:
-        warnings.append({
-            "rule": "orphaned-canonical",
-            "doc": ", ".join(orphaned),
-            "detail": "Canonical specs not referenced as parent by any child. May indicate spec tree gaps.",
-        })
+            else:
+                # Verify each referenced spec exists
+                for ref in implements_list:
+                    # Ref is like "spec/knowledge-model.md" — check file exists
+                    ref_path = docs_dir / ref
+                    if not ref_path.exists():
+                        warnings.append({
+                            "rule": "plan-reference-missing",
+                            "doc": path,
+                            "detail": f"Referenced spec '{ref}' not found at expected path.",
+                        })
 
     valid = len(errors) == 0
 
@@ -189,10 +248,12 @@ def validate(docs_dir: Path) -> dict[str, Any]:
         "valid": valid,
         "errors": errors,
         "warnings": warnings,
-        "canonical_docs": canonical_docs,
-        "orphaned_canonical": orphaned,
+        "canonical_docs": [info["path"] for info in canonical.values()],
+        "reachability": reachability,
+        "cycles": [c for c in cycles],
         "duplicate_owners": [
-            {"concern": c, "docs": d} for c, d in duplicates.items()
+            {"concern": c, "owners": [spec_index[o]["path"] for o in owners]}
+            for c, owners in duplicates.items()
         ],
     }
 
@@ -202,15 +263,16 @@ def _format_report(result: dict) -> str:
     lines.append("# Spec Authority Validation Report")
     lines.append("")
 
-    if result["valid"]:
-        lines.append("**Result: PASS** — no structural authority errors.")
+    if result["valid"] and not result["warnings"]:
+        lines.append("**Result: PASS** — 0 errors, 0 warnings.")
+    elif result["valid"]:
+        lines.append(f"**Result: PASS with {len(result['warnings'])} warning(s)**")
     else:
-        lines.append("**Result: FAIL** — structural authority errors found.")
+        lines.append(f"**Result: FAIL** — {len(result['errors'])} error(s), {len(result['warnings'])} warning(s)")
     lines.append("")
 
-    lines.append(f"Canonical docs: {len(result['canonical_docs'])}")
-    lines.append(f"Errors: {len(result['errors'])}")
-    lines.append(f"Warnings: {len(result['warnings'])}")
+    lines.append(f"Canonical specs: {len(result['canonical_docs'])}")
+    lines.append(f"Reachability: {sum(1 for v in result['reachability'].values() if v == 'root')}/{len(result['reachability'])} reach root")
     lines.append("")
 
     if result["errors"]:
@@ -228,12 +290,20 @@ def _format_report(result: dict) -> str:
     if result["duplicate_owners"]:
         lines.append("## Duplicate Concern Owners")
         for d in result["duplicate_owners"]:
-            lines.append(f"- **{d['concern']}**: {', '.join(d['docs'])}")
+            lines.append(f"- **{d['concern']}**: {', '.join(d['owners'])}")
         lines.append("")
 
-    if result["orphaned_canonical"]:
-        lines.append("## Orphaned Canonical Specs")
-        lines.append(f"No child references these as parent: {', '.join(result['orphaned_canonical'])}")
+    if result["cycles"]:
+        lines.append("## Cycles")
+        for c in result["cycles"]:
+            lines.append(f"- {' → '.join(c)}")
+        lines.append("")
+
+    unreachable = {sid: r for sid, r in result["reachability"].items() if r != "root"}
+    if unreachable:
+        lines.append("## Unreachable Specs")
+        for sid, reason in unreachable.items():
+            lines.append(f"- **{sid}**: {reason}")
         lines.append("")
 
     return "\n".join(lines)
@@ -260,8 +330,9 @@ def main() -> None:
     result = validate(docs_dir)
 
     if args.json:
-        import json
-        print(json.dumps(result, indent=2, ensure_ascii=False, default=str))
+        # Convert non-serializable types
+        output = {k: v for k, v in result.items()}
+        print(json.dumps(output, indent=2, ensure_ascii=False, default=str))
     else:
         print(_format_report(result))
 

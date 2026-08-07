@@ -1,7 +1,18 @@
+---
+spec_id: implementation-plan-vnext
+spec_role: implementation-plan
+implements:
+  - spec/knowledge-model.md
+  - spec/project-model.md
+  - spec/workflow-model.md
+  - spec/history-model.md
+  - spec/governance.md
+---
+
 # Kode Brain vNext — Implementation Plan
 
 **Status:** Execution plan
-**Depends on:** `docs/design/spec.md`
+**Depends on:** `docs/design/spec.md` (root) and canonical child specs
 **Last aligned:** 2026-08-07
 
 > This document is written for an implementation agent. Execute phases in order. Do not redesign the product while implementing unless the spec is internally impossible; surface contradictions instead.
@@ -521,44 +532,20 @@ Make Kode Brain useful during implementation, not only before/after scanning.
 
 ### Add change records
 
-Path:
+Implement Change lifecycle and record structure as defined in:
+[`spec/workflow-model.md` §Change-First Workflow](spec/workflow-model.md)
 
-```text
-changes/active/YYYY-MM-DD-<slug>.md
-changes/completed/
-```
-
-Status:
-
-```text
-planned
-in_progress
-implemented
-reconciled
-```
+Implement the lifecycle: planned → in_progress → implemented → reconciled. Use separate `change_state` field (not generic `status`). See [`spec/workflow-model.md` §Status vs Lifecycle State](spec/workflow-model.md) for the contract.
 
 ### Agent rule
 
-Before a material behavior/architecture/domain/API/invariant change:
-
-1. read relevant Project Contract/domain pages,
-2. create/update active change,
-3. record intended impact,
-4. then implement.
-
-After implementation:
-
-1. harvest/review changed files,
-2. compare with intended change,
-3. update current-state KB,
-4. surface drift,
-5. mark reconciled and move to completed.
+Implement the agent workflow defined in [`spec/workflow-model.md` §Change-First Workflow](spec/workflow-model.md), including history retrieval before material changes as specified in [`spec/history-model.md` §Agent Workflow Integration](spec/history-model.md).
 
 ### Acceptance criteria
 
 - current-state architecture is not rewritten as if unfinished work already exists,
-- material implementation has an intent record,
-- completed change points to implementation evidence,
+- material implementation has an intent record with proper change_state lifecycle,
+- completed change captures outcome, deviations, lessons learned,
 - agents can find current active work from project hub.
 
 ---

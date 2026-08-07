@@ -1,6 +1,11 @@
+---
+spec_role: historical
+superseded_by: spec/workflow-model.md
+---
+
 # Agent Role Boundaries
 
-> **Superseded in part by `docs/design/spec.md`.** See that document for vNext behavior.
+> **Superseded.** Current agent workflow is defined in [`spec/workflow-model.md`](spec/workflow-model.md).
 
 Agents are orchestrators. They call skills, make decisions about ordering and retry, and write outputs to the knowledge base. They are not skills themselves.
 

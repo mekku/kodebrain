@@ -1,6 +1,11 @@
+---
+spec_role: historical
+superseded_by: spec/workflow-model.md
+---
+
 # Workflows
 
-> **Superseded in part by `docs/design/spec.md`.** See that document for vNext behavior.
+> **Superseded.** Current workflow model is defined in [`spec/workflow-model.md`](spec/workflow-model.md).
 
 Core workflow sequence diagrams. All diagrams use Mermaid syntax.
 

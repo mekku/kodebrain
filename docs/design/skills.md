@@ -1,7 +1,12 @@
+---
+spec_role: historical
+superseded_by: kodebrain/skill/SKILL.md
+---
+
 # Skill API Contracts
 
-> **Superseded in part by `docs/design/spec.md`.** See that document for vNext behavior.
-> Refer to `kodebrain/skill/SKILL.md` for the current skill implementation.
+> **Superseded.** Current skill contract is `kodebrain/skill/SKILL.md`.
+> This document is historical design input.
 
 Skills are stateless, single-responsibility functions. Each skill does one job and returns structured output. Skills are composed by agents into workflows.
 
