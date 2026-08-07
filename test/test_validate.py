@@ -194,6 +194,133 @@ def test_resolution_persists_across_rescan():
         assert result2["pending_resolution"] == 0
 
 
+# ── Resolution state machine tests ────────────────────────────────────────
+
+def test_current_document_auto_accepted_not_pending():
+    """status=current → resolution=accepted, not counted as pending."""
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        (root / "docs" / "architecture").mkdir(parents=True)
+        (root / "docs" / "architecture" / "overview.md").write_text(
+            "---\nstatus: current\n---\n\n**Status:** CURRENT\n\n# Architecture\n\nOverview.\n"
+        )
+
+        result = scan_intent_sources(root)
+        arch = [s for s in result["sources"] if "architecture" in s["path"]][0]
+        assert arch["resolution"]["state"] == "accepted", \
+            f"Expected auto-accepted, got {arch['resolution']['state']}"
+        assert arch["resolution"]["provenance"] == "project_document"
+        assert result["pending_resolution"] == 0
+        assert result["pending_confirmation"] is False
+
+
+def test_historical_document_auto_rejected_not_pending():
+    """status=historical → resolution=rejected, not counted as pending."""
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        (root / "docs" / "adr").mkdir(parents=True)
+        (root / "docs" / "adr" / "001-old.md").write_text(
+            "---\nstatus: historical\n---\n\n**Status:** HISTORICAL\n\n# ADR 001\n\nSuperseded.\n"
+        )
+
+        result = scan_intent_sources(root)
+        adr = [s for s in result["sources"] if "001-old" in s["path"]][0]
+        assert adr["resolution"]["state"] == "rejected", \
+            f"Expected auto-rejected, got {adr['resolution']['state']}"
+        assert result["pending_resolution"] == 0
+
+
+def test_draft_document_pending_blocks():
+    """status=draft → resolution=pending → validator blocked."""
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        (root / "docs" / "specs").mkdir(parents=True)
+        (root / "docs" / "specs" / "product.md").write_text(
+            "---\nstatus: draft\n---\n\n**Status:** DRAFT v0.1\n\n# Product\n\nA spec.\n"
+        )
+
+        result = scan_intent_sources(root)
+        spec = [s for s in result["sources"] if "product" in s["path"]][0]
+        assert spec["resolution"]["state"] == "pending"
+        assert result["pending_resolution"] >= 1
+        assert result["pending_confirmation"] is True
+
+
+def test_deferred_still_blocks():
+    """resolution=deferred → still counts as pending_resolution, validator blocked."""
+    with tempfile.TemporaryDirectory() as td:
+        kb = _kb_dir(Path(td))
+        _make_kb(kb / "graph", [], intent_sources={
+            "discovered": 1, "pending_resolution": 1, "accepted": 0,
+            "pending_confirmation": True,
+            "document_status": {"draft": 1, "current": 0, "historical": 0, "unknown": 0},
+            "resolution": {"accepted": 0, "partial": 0, "rejected": 0, "pending": 0, "deferred": 1},
+            "sources": [{
+                "path": "docs/specs/product.md", "kind": "specification",
+                "status": "draft", "authority": "high",
+                "resolution": {"state": "deferred", "provenance": "human",
+                               "resolved_at": "2026-08-07T00:00:00Z"}
+            }]
+        })
+
+        result = run_validation(kb, Path(td))
+        intent_findings = [f for f in result["findings"]
+                           if f.get("check") == "intent-inventory-gate"]
+        blocking = [f for f in intent_findings if f["severity"] == "BLOCKING_INCOMPLETE"]
+        assert len(blocking) >= 1, f"deferred should block, got {len(blocking)} blocking"
+        assert result["completion_state"] == "blocked"
+
+
+def test_partial_without_note_blocks():
+    """resolution=partial without note → still unresolved, validator blocked."""
+    with tempfile.TemporaryDirectory() as td:
+        kb = _kb_dir(Path(td))
+        _make_kb(kb / "graph", [], intent_sources={
+            "discovered": 1, "pending_resolution": 1, "accepted": 0,
+            "pending_confirmation": True,
+            "document_status": {"draft": 1, "current": 0, "historical": 0, "unknown": 0},
+            "resolution": {"accepted": 0, "partial": 1, "rejected": 0, "pending": 0, "deferred": 0},
+            "sources": [{
+                "path": "docs/specs/product.md", "kind": "specification",
+                "status": "draft", "authority": "high",
+                "resolution": {"state": "partial", "provenance": "human",
+                               "resolved_at": "2026-08-07T00:00:00Z"}
+            }]
+        })
+
+        result = run_validation(kb, Path(td))
+        intent_findings = [f for f in result["findings"]
+                           if f.get("check") == "intent-inventory-gate"]
+        blocking = [f for f in intent_findings if f["severity"] == "BLOCKING_INCOMPLETE"]
+        assert len(blocking) >= 1, f"partial-without-note should block, got {len(blocking)}"
+
+
+def test_partial_with_note_is_resolved():
+    """resolution=partial + note → resolved, no blocking."""
+    with tempfile.TemporaryDirectory() as td:
+        kb = _kb_dir(Path(td))
+        _make_kb(kb / "graph", [], intent_sources={
+            "discovered": 1, "pending_resolution": 0, "accepted": 0,
+            "pending_confirmation": False,
+            "document_status": {"draft": 1, "current": 0, "historical": 0, "unknown": 0},
+            "resolution": {"accepted": 0, "partial": 1, "rejected": 0, "pending": 0, "deferred": 0},
+            "sources": [{
+                "path": "docs/specs/product.md", "kind": "specification",
+                "status": "draft", "authority": "high",
+                "resolution": {"state": "partial", "provenance": "human",
+                               "resolved_at": "2026-08-07T00:00:00Z",
+                               "note": "Sections 1-3 current; voice section superseded"}
+            }]
+        })
+
+        result = run_validation(kb, Path(td))
+        intent_findings = [f for f in result["findings"]
+                           if f.get("check") == "intent-inventory-gate"]
+        blocking = [f for f in intent_findings if f["severity"] == "BLOCKING_INCOMPLETE"]
+        assert len(blocking) == 0, f"partial-with-note should not block, got {len(blocking)}"
+        assert result["completion_state"] != "blocked"
+
+
 # ── Run ──────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -205,6 +332,12 @@ if __name__ == "__main__":
         test_intent_pending_produces_blocking,
         test_intent_all_resolved_produces_clean,
         test_resolution_persists_across_rescan,
+        test_current_document_auto_accepted_not_pending,
+        test_historical_document_auto_rejected_not_pending,
+        test_draft_document_pending_blocks,
+        test_deferred_still_blocks,
+        test_partial_without_note_blocks,
+        test_partial_with_note_is_resolved,
     ]
     failed = 0
     for test in tests:

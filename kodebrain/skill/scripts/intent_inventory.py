@@ -254,7 +254,22 @@ def scan_intent_sources(root: Path, kb_dir: Path | None = None) -> dict:
             prev = previous.get(rel)
             if prev and prev.get("_file_hash") == file_hash and "resolution" in prev:
                 resolution = prev["resolution"]
+            elif status == "current":
+                # Confirmed docs auto-accepted — no human action needed
+                resolution = {
+                    "state": "accepted",
+                    "provenance": "project_document",
+                    "resolved_at": _git_last_modified(root, rel),
+                }
+            elif status == "historical":
+                # Historical docs auto-rejected — explicitly not current
+                resolution = {
+                    "state": "rejected",
+                    "provenance": "project_document",
+                    "resolved_at": _git_last_modified(root, rel),
+                }
             else:
+                # draft or unknown — needs human decision
                 resolution = {
                     "state": "pending",
                     "provenance": None,
@@ -291,23 +306,45 @@ def scan_intent_sources(root: Path, kb_dir: Path | None = None) -> dict:
     draft_or_unknown = sum(1 for s in sources if s["requires_confirmation"])
     historical = sum(1 for s in sources if s["status"] == "historical")
 
-    # pending_confirmation derived from resolution state, not document status
-    pending = sum(1 for s in sources if s["resolution"]["state"] == "pending")
+    # pending_confirmation derived from resolution state, not document status.
+    # pending AND deferred are unresolved — both block completion.
+    # partial without note also blocks (don't know which sections are current).
+    def _is_unresolved(s: dict) -> bool:
+        state = s["resolution"]["state"]
+        if state in ("pending", "deferred"):
+            return True
+        if state == "partial" and not s["resolution"].get("note"):
+            return True
+        return False
+
+    pending = sum(1 for s in sources if _is_unresolved(s))
     accepted = sum(1 for s in sources if s["resolution"]["state"] == "accepted")
     partial = sum(1 for s in sources if s["resolution"]["state"] == "partial")
     rejected = sum(1 for s in sources if s["resolution"]["state"] == "rejected")
+    deferred = sum(1 for s in sources if s["resolution"]["state"] == "deferred")
 
     result = {
         "scanned_at": datetime.now(timezone.utc).isoformat(),
         "project_root": str(root.resolve()),
         "discovered": discovered,
-        "confirmed": confirmed,
-        "draft_or_unknown": draft_or_unknown,
-        "historical": historical,
+        "document_status": {
+            "current": sum(1 for s in sources if s["status"] == "current"),
+            "draft": sum(1 for s in sources if s["status"] == "draft"),
+            "historical": sum(1 for s in sources if s["status"] == "historical"),
+            "unknown": sum(1 for s in sources if s["status"] == "unknown"),
+        },
+        "resolution": {
+            "accepted": accepted,
+            "partial": partial,
+            "rejected": rejected,
+            "pending": sum(1 for s in sources if s["resolution"]["state"] == "pending"),
+            "deferred": deferred,
+        },
         "pending_resolution": pending,
         "accepted": accepted,
         "partial": partial,
         "rejected": rejected,
+        "deferred": deferred,
         "pending_confirmation": pending > 0,
         "sources": sources,
     }
@@ -315,10 +352,12 @@ def scan_intent_sources(root: Path, kb_dir: Path | None = None) -> dict:
     return result
 
 
-def apply_resolution(kb_dir: Path, source_path: str, state: str) -> dict | None:
+def apply_resolution(kb_dir: Path, source_path: str, state: str,
+                     note: str | None = None) -> dict | None:
     """Apply a human resolution to one intent source.
 
     ``state`` must be one of: accepted, partial, rejected, deferred.
+    ``note`` is optional context (e.g., which sections of a partial spec are current).
 
     Updates ``intent-sources.json`` in place and returns the full inventory
     with recalculated counts. Returns None if the source is not found.
@@ -345,19 +384,41 @@ def apply_resolution(kb_dir: Path, source_path: str, state: str) -> dict | None:
         "provenance": "human",
         "resolved_at": datetime.now(timezone.utc).isoformat(),
     }
+    if note:
+        target["resolution"]["note"] = note
 
-    # Recalculate counts
-    pending = sum(1 for s in sources if s["resolution"]["state"] == "pending")
+    # Recalculate counts using _is_unresolved logic
+    def _is_unresolved(s: dict) -> bool:
+        st = s["resolution"]["state"]
+        if st in ("pending", "deferred"):
+            return True
+        if st == "partial" and not s["resolution"].get("note"):
+            return True
+        return False
+
+    pending = sum(1 for s in sources if _is_unresolved(s))
     accepted = sum(1 for s in sources if s["resolution"]["state"] == "accepted")
     partial = sum(1 for s in sources if s["resolution"]["state"] == "partial")
     rejected = sum(1 for s in sources if s["resolution"]["state"] == "rejected")
+    deferred = sum(1 for s in sources if s["resolution"]["state"] == "deferred")
 
     inventory["pending_resolution"] = pending
     inventory["accepted"] = accepted
     inventory["partial"] = partial
     inventory["rejected"] = rejected
+    inventory["deferred"] = deferred
     inventory["pending_confirmation"] = pending > 0
     inventory["scanned_at"] = datetime.now(timezone.utc).isoformat()
+
+    # Update resolution summary
+    if "resolution" in inventory:
+        inventory["resolution"] = {
+            "accepted": accepted,
+            "partial": partial,
+            "rejected": rejected,
+            "pending": sum(1 for s in sources if s["resolution"]["state"] == "pending"),
+            "deferred": deferred,
+        }
 
     inventory_path.write_text(json.dumps(inventory, indent=2, ensure_ascii=False) + "\n")
     return inventory
@@ -387,6 +448,11 @@ def main() -> None:
         metavar=("SOURCE_PATH", "STATE"),
         help="Apply human resolution: <path> <accepted|partial|rejected|deferred>",
     )
+    parser.add_argument(
+        "--resolve-note",
+        metavar="NOTE",
+        help="Optional note for --resolve (e.g., sections current in a partial spec)",
+    )
     args = parser.parse_args()
 
     root = Path(args.root).resolve()
@@ -400,7 +466,8 @@ def main() -> None:
             print("Error: --resolve requires --kb-dir", file=sys.stderr)
             sys.exit(1)
         source_path, state = args.resolve
-        result = apply_resolution(Path(args.kb_dir), source_path, state)
+        result = apply_resolution(Path(args.kb_dir), source_path, state,
+                                  note=args.resolve_note)
         if result is None:
             sys.exit(1)
         json_str = json.dumps(result, indent=2, ensure_ascii=False)

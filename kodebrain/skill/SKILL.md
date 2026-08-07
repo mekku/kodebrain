@@ -752,9 +752,9 @@ Unmapped:             N  (NN%)
 
 ### Intent Coverage
 Intent sources discovered:   N
-Confirmed / consumed:        N  (NN%)
-Draft / pending:             N
-Historical:                  N
+Accepted (human-confirmed):  N  (NN%)
+Rejected (historical):       N
+Pending / deferred:          N  (⚠ blocks completion)
 
 ## Knowledge Map
 | Type         | Count |

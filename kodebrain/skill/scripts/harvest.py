@@ -648,21 +648,30 @@ def run_benchmark(kb_project_dir: Path, source_root: Path | None = None) -> dict
     if intent_sources_path.exists():
         intent_data = json.loads(intent_sources_path.read_text())
         discovered = intent_data.get('discovered', 0)
-        confirmed = intent_data.get('confirmed', 0)
+        # Use resolution.accepted (human-confirmed), not document status
+        resolution = intent_data.get('resolution', {})
+        accepted = resolution.get('accepted', intent_data.get('accepted', 0))
+        pending = intent_data.get('pending_resolution', 0)
+        rejected = resolution.get('rejected', intent_data.get('rejected', 0))
+        doc_status = intent_data.get('document_status', {})
         intent_coverage = {
             'discovered': discovered,
-            'confirmed': confirmed,
-            'draft_or_unknown': intent_data.get('draft_or_unknown', 0),
-            'historical': intent_data.get('historical', 0),
-            'pending_confirmation': intent_data.get('pending_confirmation', discovered > confirmed),
-            'coverage_pct': round(confirmed / max(discovered, 1) * 100, 1),
+            'document_status': doc_status,
+            'resolution': resolution,
+            'accepted': accepted,
+            'pending': pending,
+            'rejected': rejected,
+            'pending_confirmation': intent_data.get('pending_confirmation', pending > 0),
+            'coverage_pct': round(accepted / max(discovered, 1) * 100, 1),
         }
     else:
         intent_coverage = {
             'discovered': 0,
-            'confirmed': 0,
-            'draft_or_unknown': 0,
-            'historical': 0,
+            'document_status': {},
+            'resolution': {},
+            'accepted': 0,
+            'pending': 0,
+            'rejected': 0,
             'pending_confirmation': False,
             'coverage_pct': 0.0,
             'note': 'intent-sources.json not found — run intent_inventory.py first',

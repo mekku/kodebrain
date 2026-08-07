@@ -814,9 +814,11 @@ def check_intent_inventory_gate(kb_dir: Path) -> List[Dict]:
         })
         return findings
 
-    pending = inventory.get("pending_resolution", inventory.get("draft_or_unknown", 0))
+    pending = inventory.get("pending_resolution", 0)
     discovered = inventory.get("discovered", 0)
-    confirmed = inventory.get("accepted", inventory.get("confirmed", 0))
+    resolution = inventory.get("resolution", {})
+    accepted = resolution.get("accepted", inventory.get("accepted", 0))
+    deferred = resolution.get("deferred", inventory.get("deferred", 0))
 
     if pending > 0:
         findings.append({
@@ -827,14 +829,15 @@ def check_intent_inventory_gate(kb_dir: Path) -> List[Dict]:
             "node": None,
             "description": (
                 f"{pending} of {discovered} intent sources have unresolved confirmation. "
-                f"({confirmed} accepted, {pending} pending). "
+                f"({accepted} accepted, {deferred} deferred, {pending} pending/partial). "
                 "Run adaptive interview to confirm whether draft/unknown intent documents "
                 "are still current. Onboard cannot declare complete with unresolved intent."
             ),
             "details": {
                 "discovered": discovered,
-                "accepted": confirmed,
+                "accepted": accepted,
                 "pending": pending,
+                "deferred": deferred,
             },
         })
 
@@ -876,6 +879,12 @@ def run_validation(kb_dir: Path, project_root: Path) -> Dict:
     all_findings.extend(can_findings)
     check_counts["canonical-authority"] = len([n for n in nodes if n.get("page_path")])
 
+    # Check 7: Intent inventory gate — has inventory been run? are sources resolved?
+    # Runs BEFORE report rendering so BLOCKING_INCOMPLETE findings appear in reports.
+    int_inv_findings = check_intent_inventory_gate(kb_dir)
+    all_findings.extend(int_inv_findings)
+    check_counts["intent-inventory-gate"] = 1
+
     # Render reports from validation findings BEFORE report consistency check.
     # Reports are derived views — stale derived artifacts must not block validation.
     # The renderer rebuilds them; the postcondition verifies they match.
@@ -890,11 +899,6 @@ def run_validation(kb_dir: Path, project_root: Path) -> Dict:
     rpt_findings = check_report_consistency(kb_dir, all_findings)
     all_findings.extend(rpt_findings)
     check_counts["report-consistency"] = 5
-
-    # Check 7: Intent inventory gate — has inventory been run? are sources resolved?
-    int_inv_findings = check_intent_inventory_gate(kb_dir)
-    all_findings.extend(int_inv_findings)
-    check_counts["intent-inventory-gate"] = 1
 
     # Assign sequential IDs
     for i, f in enumerate(all_findings):

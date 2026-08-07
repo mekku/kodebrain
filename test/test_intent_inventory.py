@@ -38,11 +38,11 @@ def test_pending_confirmation_gate():
     assert result["pending_confirmation"] is True, (
         f"pending_confirmation must be True when draft specs exist"
     )
-    assert result["draft_or_unknown"] >= 1, (
-        f"draft_or_unknown must be >= 1, got {result['draft_or_unknown']}"
+    assert result["pending_resolution"] >= 1, (
+        f"pending_resolution must be >= 1, got {result['pending_resolution']}"
     )
-    assert result["confirmed"] < result["discovered"], (
-        "confirmed count must be less than discovered when drafts exist"
+    assert result["accepted"] < result["discovered"], (
+        "accepted count must be less than discovered when drafts exist"
     )
 
 
