@@ -1,5 +1,7 @@
 # Workflows
 
+> **Superseded in part by `docs/design/spec.md`.** See that document for vNext behavior.
+
 Core workflow sequence diagrams. All diagrams use Mermaid syntax.
 
 ---

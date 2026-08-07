@@ -1,5 +1,9 @@
 # Taxonomy
 
+> **Superseded in part by `docs/design/spec.md`.** See that document for vNext behavior.
+> Provenance is now separate from confidence. Node IDs use flat hyphen-separated format (`domain-slug-type-slug`).
+> This document remains reference for node/edge type semantics.
+
 Finalized types, labels, and their precise semantics.
 
 ---
@@ -139,19 +143,19 @@ Evidence items ground claims in reality.
 
 ### Node IDs
 
-Format: `{domain}/{type-slug}` or `{domain}/{subdomain}/{type-slug}`
+Format: `{domain}-{type-slug}` (flat, hyphen-separated)
 
 - Lowercase, hyphen-separated
 - Stable: do not change an ID after it is referenced by edges
 - Unique within the project graph
-- Examples: `auth/login-flow`, `billing/invoice-model`, `notification/send-email-capability`
+- Examples: `auth-login-flow`, `billing-invoice-model`, `notification-send-email-capability`
 
 ### Page File Names
 
 Match the node ID slug. Examples:
-- `domains/auth/capabilities/login.md`
-- `domains/billing/models/invoice.md`
-- `domains/notification/flows/send-email.md`
+- `domains/auth/capabilities/auth-login.md`
+- `domains/billing/models/billing-invoice.md`
+- `domains/notification/flows/notification-send-email.md`
 
 ### Decision File Names
 

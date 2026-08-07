@@ -1,29 +1,46 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://kb-builder/schema/knowledge-base.schema.json",
+  "$id": "https://kodebrain/schema/knowledge-base.schema.json",
   "title": "KnowledgeBase",
-  "description": "The top-level graph container for a single project's knowledge map. Stored as docs/brain/projects/<name>/graph/knowledge-base.json, or split into nodes.json + edges.json.",
+  "description": "Top-level container for a project's Kode Brain knowledge map. Stored as nodes.json + edges.json under docs/brain/projects/<name>/graph/.",
   "type": "object",
-  "required": ["project", "version", "generatedAt", "nodes", "edges"],
+  "required": ["project", "schema_version", "generated_at", "nodes", "edges"],
   "additionalProperties": false,
   "properties": {
     "project": {
       "type": "string",
       "description": "Project slug. Matches the directory name under docs/brain/projects/."
     },
-    "version": {
+    "schema_version": {
       "type": "string",
       "pattern": "^\\d+\\.\\d+$",
-      "description": "Schema version of this knowledge base format."
+      "description": "Schema version of this knowledge base format. Used for migration detection."
     },
-    "generatedAt": {
+    "generated_at": {
       "type": "string",
       "format": "date-time",
       "description": "ISO 8601 timestamp of last full generation."
     },
-    "generatedBy": {
+    "generated_by": {
       "type": "string",
       "description": "Agent or tool that last generated this file."
+    },
+    "last_onboarded": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of last onboarding run."
+    },
+    "onboarding_state": {
+      "type": "string",
+      "enum": [
+        "greenfield",
+        "new_brownfield",
+        "partial_kb",
+        "legacy_kb",
+        "stale_kb",
+        "onboarded"
+      ],
+      "description": "Current onboarding state of this project's KB."
     },
     "nodes": {
       "type": "array",
@@ -33,9 +50,9 @@
       "type": "array",
       "items": { "$ref": "edge.schema.json" }
     },
-    "fileIndex": {
+    "file_index": {
       "type": "object",
-      "description": "Reverse index: source file path → list of node IDs that reference that file. Used for efficient change detection.",
+      "description": "Reverse index: source file path to list of node IDs that reference that file.",
       "additionalProperties": {
         "type": "array",
         "items": { "type": "string" }
@@ -46,21 +63,21 @@
       "description": "Summary statistics for quick inspection.",
       "additionalProperties": false,
       "properties": {
-        "totalNodes": { "type": "number" },
-        "totalEdges": { "type": "number" },
-        "nodesByType": {
+        "total_nodes": { "type": "number" },
+        "total_edges": { "type": "number" },
+        "nodes_by_type": {
           "type": "object",
           "additionalProperties": { "type": "number" }
         },
-        "nodesByStatus": {
+        "nodes_by_status": {
           "type": "object",
           "additionalProperties": { "type": "number" }
         },
-        "nodesByConfidence": {
+        "nodes_by_confidence": {
           "type": "object",
           "additionalProperties": { "type": "number" }
         },
-        "unmappedFiles": {
+        "unmapped_files": {
           "type": "number",
           "description": "Count of source files not referenced by any node."
         }
@@ -70,19 +87,21 @@
   "examples": [
     {
       "project": "admin-platform",
-      "version": "0.1",
-      "generatedAt": "2026-05-07T10:30:00Z",
-      "generatedBy": "knowledge_builder",
+      "schema_version": "1.0",
+      "generated_at": "2026-08-07T10:30:00Z",
+      "generated_by": "knowledge_builder",
+      "last_onboarded": "2026-08-07T10:00:00Z",
+      "onboarding_state": "onboarded",
       "nodes": [],
       "edges": [],
-      "fileIndex": {},
+      "file_index": {},
       "stats": {
-        "totalNodes": 0,
-        "totalEdges": 0,
-        "nodesByType": {},
-        "nodesByStatus": {},
-        "nodesByConfidence": {},
-        "unmappedFiles": 0
+        "total_nodes": 0,
+        "total_edges": 0,
+        "nodes_by_type": {},
+        "nodes_by_status": {},
+        "nodes_by_confidence": {},
+        "unmapped_files": 0
       }
     }
   ]

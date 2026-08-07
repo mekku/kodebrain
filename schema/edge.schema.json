@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://kb-builder/schema/edge.schema.json",
+  "$id": "https://kodebrain/schema/edge.schema.json",
   "title": "KnowledgeEdge",
   "description": "A directed relationship between two knowledge nodes.",
   "type": "object",
-  "required": ["from", "to", "type", "confidence"],
+  "required": ["from", "to", "type", "confidence", "provenance"],
   "additionalProperties": false,
   "properties": {
     "from": {
@@ -35,21 +35,35 @@
         "risky_for",
         "supported_by"
       ],
-      "description": "The semantic type of the relationship. See taxonomy.md for precise meanings."
+      "description": "The semantic type of the relationship."
     },
     "confidence": {
       "type": "string",
       "enum": [
         "verified",
-        "source_supported",
+        "supported",
         "inferred",
         "ambiguous",
         "needs_human_review"
       ]
     },
+    "provenance": {
+      "type": "string",
+      "enum": [
+        "human",
+        "project_document",
+        "source_code",
+        "configuration",
+        "runtime",
+        "test",
+        "git",
+        "generated"
+      ],
+      "description": "Where the edge claim originated."
+    },
     "evidence": {
       "type": "array",
-      "description": "Source evidence supporting this edge. Required when confidence is source_supported or verified.",
+      "description": "Source evidence supporting this edge. Required when confidence is supported or verified.",
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -78,22 +92,23 @@
       "maxLength": 80,
       "description": "Optional short label for graph visualization."
     },
-    "createdBy": {
+    "created_by": {
       "type": "string",
-      "enum": ["human", "knowledge_builder", "knowledge_architect", "knowledge_reviewer"],
+      "enum": ["human", "knowledge_builder", "knowledge_architect", "knowledge_reviewer", "generated"],
       "description": "Who created this edge."
     },
-    "lastUpdated": {
+    "last_updated": {
       "type": "string",
       "format": "date"
     }
   },
   "examples": [
     {
-      "from": "auth/login-capability",
-      "to": "auth/login-flow",
+      "from": "auth-login-capability",
+      "to": "auth-login-flow",
       "type": "part_of_flow",
-      "confidence": "source_supported",
+      "confidence": "supported",
+      "provenance": "source_code",
       "evidence": [
         {
           "file": "src/api/auth/login.ts",
@@ -101,23 +116,8 @@
           "note": "Handler directly calls AuthService.validateCredentials and AuthService.createSession in sequence"
         }
       ],
-      "createdBy": "knowledge_builder",
-      "lastUpdated": "2026-05-07"
-    },
-    {
-      "from": "auth/login-flow",
-      "to": "auth/session-cache",
-      "type": "writes_to",
-      "confidence": "source_supported",
-      "evidence": [
-        {
-          "file": "src/services/AuthService.ts",
-          "symbol": "AuthService.createSession",
-          "note": "createSession calls SessionCache.set() after successful validation"
-        }
-      ],
-      "createdBy": "knowledge_builder",
-      "lastUpdated": "2026-05-07"
+      "created_by": "knowledge_builder",
+      "last_updated": "2026-08-07"
     }
   ]
 }

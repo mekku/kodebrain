@@ -2,10 +2,13 @@
 id: {{domain-slug}}
 type: domain
 status: active
-confidence: source_supported
-project: {{project-name}}
+confidence: {{confidence}}
+provenance: {{provenance}}
+knowledge_role: {{knowledge_role}}
+project: {{project-slug}}
 domain: {{domain-slug}}
 source_files: []
+last_updated: {{date}}
 last_reviewed: null
 tags:
   - type/domain
@@ -15,22 +18,38 @@ tags:
 
 # {{Domain Name}}
 
-## Short Summary
+## Responsibility
 
-{{One or two sentences describing what this domain is responsible for.}}
+{{One paragraph: what this domain is responsible for. What business or system problem it solves.}}
 
-## Why It Exists
+## Owns
 
-{{The business or system problem this domain solves.}}
+- {{Capability, data, or sub-domain this domain owns}}
+- ...
+
+## Does Not Own
+
+- {{Thing this domain explicitly does NOT own}} — see [[{{other-domain-slug}}|{{Other Domain}}]]
+- ...
+
+## Depends On
+
+- [[{{other-domain-slug}}|{{Other Domain}}]] — {{what this domain needs from it}}
+- ...
+
+## Used By
+
+- [[{{other-domain-slug}}|{{Other Domain}}]] — {{why it uses this domain}}
+- ...
+
+## Core Concepts
+
+- [[{{domain-slug}}-{{concept-slug}}|{{Concept Name}}]] — {{one-line description}}
+- ...
 
 ## Capabilities
 
 - [[{{domain-slug}}-{{capability-slug}}|{{Capability Name}}]]
-- ...
-
-## Key Concepts
-
-- [[{{domain-slug}}-{{concept-slug}}|{{Concept Name}}]] — {{one-line description}}
 - ...
 
 ## Core Flows
@@ -38,31 +57,37 @@ tags:
 - [[{{domain-slug}}-{{flow-slug}}|{{Flow Name}}]]
 - ...
 
-## Data Models
+## Data Ownership
 
-- [[{{domain-slug}}-{{model-slug}}|{{Model Name}}]]
+| Model | Ownership | Shared With |
+|---|---|---|
+| [[{{domain-slug}}-{{model-slug}}|{{Model}}]] | owned / shared | {{domain}} |
+
+## Entry Points
+
+| Entry Point | Type | Description |
+|---|---|---|
+| `{{METHOD}} {{/path}}` | HTTP | {{what it does}} |
+| `{{command}}` | CLI | {{what it does}} |
+
+## Invariants
+
+- {{Constraint that must remain true in this domain}}
 - ...
 
-## API Surface
+## Legacy / Migration
 
-- `{{METHOD}} {{/path}}` — {{description}}
-- ...
+{{Known legacy code, partial migrations, or areas not representing intended architecture.}}
 
-## Domain Boundaries
-
-Owns:
-- ...
-
-Does NOT own (see [[{{other-domain-slug}}]]):
-- ...
-
-## Known Risks
+## Risks
 
 - [[{{domain-slug}}-{{risk-slug}}|{{Risk Name}}]]
 
-## Status Notes
+## Source Areas
 
-{{Whether the domain is fully active, partially migrated, has legacy paths, etc.}}
+| Path | Purpose |
+|---|---|
+| `{{directory}}` | {{what lives there}} |
 
 ## Open Questions
 

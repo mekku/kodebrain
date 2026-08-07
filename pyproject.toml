@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "kodebrain"
-version = "0.4.3"
+version = "0.5.0"
 description = "Living knowledge map for codebases — install agent instructions across AI platforms"
 readme = "README.md"
 license = { text = "MIT" }
@@ -15,7 +15,7 @@ dependencies = []
 kodebrain = "kodebrain.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/mekku/kb-builder"
+Homepage = "https://github.com/mekku/kodebrain"
 
 [tool.hatch.build.targets.wheel]
 packages = ["kodebrain"]

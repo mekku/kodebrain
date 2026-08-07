@@ -2,10 +2,13 @@
 id: {{domain-slug}}-{{flow-slug}}
 type: flow
 status: active
-confidence: source_supported
-project: {{project-name}}
+confidence: {{confidence}}
+provenance: {{provenance}}
+knowledge_role: {{knowledge_role}}
+project: {{project-slug}}
 domain: {{domain-slug}}
 source_files: []
+last_updated: {{date}}
 last_reviewed: null
 tags:
   - type/flow

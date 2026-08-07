@@ -58,10 +58,12 @@ It returns the relevant domain pages, source hints, and active warnings — 3–
 
 **After editing files:** Run `/kodebrain update --files <f1> <f2>` to keep the KB current.
 
-**For questions:** Run `/kodebrain query "<question>"` instead of reading raw source files.
+**For questions:** Run `/kodebrain query "<question>"` before opening source files.
 
-**KB-first rule:** Use KB pages as primary source of truth.
-Read source files directly only for targeted edits or when a node is `confidence: stale`.
+**KB-first rule:** Start from project hub and relevant domains. Check active changes.
+Use reading-pack for task context. Use targeted source for edits and verification.
+For material changes, update/create an active Kode Brain change record before implementation.
+After implementation, reconcile the KB and surface drift.
 
 KB: `docs/brain/projects/{name}/` — open `docs/brain/` in Obsidian for graph view."""
 
@@ -72,7 +74,9 @@ def _claude_global_block() -> str:
 If the current project has `docs/brain/projects/`, it has a Kode Brain knowledge map.
 Use `/kodebrain reading-pack "<task>"` before reading source files — 3–25× cheaper per query.
 After editing files, run `/kodebrain update --files <changed>` to keep the KB current.
-For questions, run `/kodebrain query "<question>"` before opening source files."""
+For questions, run `/kodebrain query "<question>"` before opening source files.
+Start from project hub and relevant domains. Check active changes before material changes.
+For material changes, create an active change record before implementation."""
 
 
 def _generic_project_block(name: str) -> str:
@@ -82,10 +86,12 @@ This project has a Kode Brain knowledge map at `docs/brain/projects/{name}/`.
 
 Before starting: read `docs/brain/projects/{name}/{name}.md` (project hub) and the
 relevant domain pages under `docs/brain/projects/{name}/domains/`.
+Check `docs/brain/projects/{name}/changes/active/` for in-progress changes.
 Check `docs/brain/projects/{name}/reports/reading-packs/` for a pre-built context pack.
 
-KB-first rule: use KB pages as primary source of truth before reading source files.
-After editing, note that KB may drift — run `/kodebrain scan` in Claude Code to refresh."""
+KB-first rule: start from project hub and relevant domains. Use targeted source for
+edits and verification. For material changes, create a change record before implementing.
+After implementation, reconcile the KB and surface drift."""
 
 
 def _generic_global_block() -> str:

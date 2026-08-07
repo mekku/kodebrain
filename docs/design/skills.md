@@ -1,5 +1,8 @@
 # Skill API Contracts
 
+> **Superseded in part by `docs/design/spec.md`.** See that document for vNext behavior.
+> Refer to `kodebrain/skill/SKILL.md` for the current skill implementation.
+
 Skills are stateless, single-responsibility functions. Each skill does one job and returns structured output. Skills are composed by agents into workflows.
 
 Skills do not call other skills directly. Agents orchestrate skill composition.

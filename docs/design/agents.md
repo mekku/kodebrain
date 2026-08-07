@@ -1,5 +1,7 @@
 # Agent Role Boundaries
 
+> **Superseded in part by `docs/design/spec.md`.** See that document for vNext behavior.
+
 Agents are orchestrators. They call skills, make decisions about ordering and retry, and write outputs to the knowledge base. They are not skills themselves.
 
 Each agent has a narrow responsibility. Agents should not grow beyond their defined scope.

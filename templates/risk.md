@@ -2,16 +2,19 @@
 id: {{domain-slug}}-{{risk-slug}}
 type: caveat
 status: needs_review
-confidence: source_supported
-project: {{project-name}}
+confidence: supported
+provenance: {{provenance}}
+knowledge_role: observed
+project: {{project-slug}}
 domain: {{domain-slug}}
 source_files: []
+last_updated: {{date}}
 last_reviewed: null
+severity: {{severity}}
 tags:
   - type/risk
   - domain/{{domain-slug}}
   - status/needs_review
-  - severity/{{high|medium|low}}
 ---
 
 # Risk: {{Short Risk Title}}

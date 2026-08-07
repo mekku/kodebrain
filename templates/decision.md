@@ -3,9 +3,12 @@ id: {{domain-slug}}-{{YYYY-MM-DD}}-{{decision-slug}}
 type: decision
 status: active
 confidence: verified
-project: {{project-name}}
+provenance: human
+knowledge_role: intent
+project: {{project-slug}}
 domain: {{domain-slug}}
 source_files: []
+last_updated: {{YYYY-MM-DD}}
 last_reviewed: {{YYYY-MM-DD}}
 tags:
   - type/decision

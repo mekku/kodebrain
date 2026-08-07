@@ -1,8 +1,9 @@
 # Open Decisions
 
-Architectural decisions that have not been finalized. Each item has a status, the options being considered, and the constraint that makes it hard to resolve.
+> **Superseded in part by `docs/design/spec.md`.** vNext has resolved several items below.
+> See individual OD items for current status.
 
-Decisions here are unresolved. Resolved decisions live as `decision` nodes in the KB itself.
+Architectural decisions. Resolved decisions live as `decision` nodes in the KB itself.
 
 ---
 
@@ -84,25 +85,9 @@ Decisions here are unresolved. Resolved decisions live as `decision` nodes in th
 
 ## OD-005 — Confidence Degradation Over Time
 
-**Status:** Open
+**Status:** Resolved — 2026-08-07 (by vNext spec)
 
-**Question:** Should confidence automatically degrade if source files change but a node is not re-reviewed?
-
-**Option A: No automatic degradation**
-- Simple
-- Problem: nodes accumulate stale confidence without anyone noticing
-
-**Option B: Time-based degradation**
-- After N days without a scan, `source_supported` → `stale`
-- Problem: a stable, unchanged file should not degrade just because time passed
-
-**Option C: Change-triggered degradation**
-- When `/brain-scan` or git diff detects a changed file, nodes that reference that file are flagged as `stale`
-- No time-based decay; only triggered by actual changes
-
-**Constraint:** KB nodes track `lastUpdated`. Git diffs provide the change signal. This decision is really about when the file-index to node-staleness mapping runs.
-
-**Leaning toward:** Option C — change-triggered via file-index, not time-based.
+**Decision:** Change-triggered degradation (Option C). Nodes referencing changed files drop to `stale`. No time-based decay. vNext adds provenance/confidence separation — a `stale` confidence marker is separate from provenance, so the source of the claim is preserved even when the claim is stale.
 
 ---
 
@@ -141,70 +126,22 @@ Decisions here are unresolved. Resolved decisions live as `decision` nodes in th
 
 ## OD-008 — Page Template Enforcement
 
-**Status:** Open
+**Status:** Resolved — 2026-08-07 (by vNext spec)
 
-**Question:** Should KB pages be freeform Markdown or strictly validated against the template in the spec (§12)?
-
-**Option A: Freeform Markdown**
-- Easy for humans to write
-- Problem: agents cannot reliably parse pages to extract structured data
-
-**Option B: Frontmatter + required sections**
-- YAML frontmatter for machine-readable fields
-- Markdown sections (`## Short Summary`, `## How It Works`, etc.) for human content
-- Agent reads frontmatter; human reads Markdown
-- Problem: sections may be missing or inconsistently named
-
-**Option C: Frontmatter only (all structured)**
-- Entire page is YAML/JSON
-- Fully machine-readable
-- Problem: violates the spec's principle that pages must be human-readable
-
-**Constraint:** Spec §7.4 says "Markdown alone is too loose for agents. JSON alone is too dry for humans. Both are needed."
-
-**Leaning toward:** Option B — YAML frontmatter for machine fields, required Markdown sections validated by a linter (review_claims skill checks for missing sections).
+**Decision:** Frontmatter + required sections (Option B). YAML frontmatter for machine-readable fields, Markdown sections for human content. vNext templates define canonical section structure. Markdown-first: knowledge is authored in Markdown; graph JSON is compiled from it.
 
 ---
 
 ## OD-009 — Edge Directionality and Inverse Edges
 
-**Status:** Open
+**Status:** Resolved — 2026-08-07 (by vNext spec)
 
-**Question:** Should both directions of a relationship be stored explicitly (e.g., `A uses B` and `B used_by A`), or only one direction with inverse computed at query time?
-
-**Option A: Store only canonical direction**
-- Canonical: `A uses B` (never `B used_by A`)
-- Inverse is computed at query time by reversing the edge
-- Simpler graph files; fewer edges to maintain
-
-**Option B: Store both directions**
-- `A uses B` stored explicitly
-- `B used_by A` also stored, labeled as inverse
-- Faster queries (no traversal reversal needed)
-- Problem: doubles the edge count; sync risk if one direction is updated but not the other
-
-**Leaning toward:** Option A — store canonical direction only. Query engine computes inverses. If traversal performance becomes a problem, add a derived inverse index.
+**Decision:** Store canonical direction only (Option A). Inverses computed at query time. `replaces`/`replaced_by` are the only mirrored pair — store one direction; the inverse is computed.
 
 ---
 
 ## OD-010 — Handling of Dynamically Referenced Code
 
-**Status:** Open
+**Status:** Resolved — 2026-08-07 (by vNext spec)
 
-**Question:** How should the builder handle code that is referenced dynamically (e.g., loaded by string name, dependency injection, `require(variable)`, plugin systems)?
-
-**Option A: Ignore dynamic references**
-- Only track statically resolvable imports
-- Problem: large portions of some systems are dynamically wired; the graph will miss them
-
-**Option B: Flag as `inferred` with a note**
-- Detect dynamic patterns (e.g., `require()` with a variable, DI containers, plugin loaders)
-- Create an edge with `confidence: inferred` and a note: "dynamic reference detected — manual verification required"
-- Problem: many false positives in framework-heavy codebases
-
-**Option C: Surface in `unmapped-files.md` with a dynamic-reference annotation**
-- Files that are never statically imported get flagged
-- Agent notes which of those files match dynamic patterns
-- Problem: not all unmapped files are dynamically referenced
-
-**Leaning toward:** Option B — detect and annotate dynamic patterns with `inferred` confidence rather than silently missing them. Better a low-confidence edge than no edge.
+**Decision:** Flag as `inferred` with annotation (Option B). Dynamic patterns get `confidence: inferred` edges with notes. vNext source-reading escalation allows targeted LLM source inspection when harvest cannot resolve dynamic wiring. Not all unmapped files are errors — some are dynamically wired and surfaced as such.

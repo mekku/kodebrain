@@ -628,7 +628,7 @@ def run_benchmark(kb_project_dir: Path, source_root: Path | None = None) -> dict
     n_total = len(nodes)
     confidence_score = (
         conf_counts.get('verified', 0) * 100
-        + conf_counts.get('source_supported', 0) * 80
+        + conf_counts.get('supported', 0) * 80
         + conf_counts.get('inferred', 0) * 40
         + conf_counts.get('ambiguous', 0) * 10
     ) / n_total if n_total else 0
@@ -643,6 +643,16 @@ def run_benchmark(kb_project_dir: Path, source_root: Path | None = None) -> dict
         if score >= 75: return 'Good'
         if score >= 60: return 'Fair'
         return 'Needs work'
+
+    # ── Provenance counts ─────────────────────────────────────────────────────
+    provenance_counts = Counter(n.get('provenance', 'unknown') for n in nodes)
+
+    # ── Knowledge role counts ─────────────────────────────────────────────────
+    role_counts = Counter(n.get('knowledge_role', 'unknown') for n in nodes)
+
+    # ── Drift items ───────────────────────────────────────────────────────────
+    drift_path = reports_dir / 'drift.md'
+    drift_items = _count_headings(drift_path) if drift_path.exists() else 0
 
     # ── Token efficiency ──────────────────────────────────────────────────────
     kb_md_bytes = sum(p.stat().st_size for p in kb_project_dir.rglob('*.md'))
@@ -670,6 +680,8 @@ def run_benchmark(kb_project_dir: Path, source_root: Path | None = None) -> dict
             'by_type': dict(type_counts),
             'by_status': dict(status_counts),
             'by_confidence': dict(conf_counts),
+            'by_provenance': dict(provenance_counts),
+            'by_knowledge_role': dict(role_counts),
         },
         'edges': {
             'total': len(edges),
@@ -688,6 +700,7 @@ def run_benchmark(kb_project_dir: Path, source_root: Path | None = None) -> dict
             'legacy_deprecated_nodes': len(legacy_nodes),
             'needs_review_items': needs_review_items,
             'suspected_legacy_items': suspected_legacy_items,
+            'drift_items': drift_items,
         },
         'scores': {
             'coverage': round(coverage_score),

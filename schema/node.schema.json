@@ -1,16 +1,16 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://kb-builder/schema/node.schema.json",
+  "$id": "https://kodebrain/schema/node.schema.json",
   "title": "KnowledgeNode",
   "description": "A single unit of knowledge in the Kode Brain system.",
   "type": "object",
-  "required": ["id", "type", "name", "summary", "status", "confidence", "sourceFiles", "lastUpdated"],
+  "required": ["id", "type", "name", "summary", "status", "confidence", "provenance", "source_files", "last_updated"],
   "additionalProperties": false,
   "properties": {
     "id": {
       "type": "string",
-      "pattern": "^[a-z][a-z0-9-]*(/[a-z][a-z0-9-]*)*$",
-      "description": "Stable, URL-safe identifier. Format: domain/slug or domain/sub/slug. Never change after first use — edges reference this."
+      "pattern": "^[a-z][a-z0-9-]*(-[a-z][a-z0-9-]*)*$",
+      "description": "Stable, URL-safe flat identifier. Format: domain-type-slug (e.g. auth-login-flow). Never change after first use — edges reference this."
     },
     "type": {
       "type": "string",
@@ -71,24 +71,44 @@
       "type": "string",
       "enum": [
         "verified",
-        "source_supported",
+        "supported",
         "inferred",
         "ambiguous",
         "stale",
         "needs_human_review"
-      ]
+      ],
+      "description": "How trustworthy the claim is. Separated from provenance (where the claim came from)."
     },
-    "sourceFiles": {
+    "provenance": {
+      "type": "string",
+      "enum": [
+        "human",
+        "project_document",
+        "source_code",
+        "configuration",
+        "runtime",
+        "test",
+        "git",
+        "generated"
+      ],
+      "description": "Where the claim originated. Separated from confidence (how sure we are). A human statement can be authoritative intent without being verified implementation."
+    },
+    "knowledge_role": {
+      "type": "string",
+      "enum": ["intent", "observed", "mixed"],
+      "description": "Whether this node describes intended design, observed implementation, or both."
+    },
+    "source_files": {
       "type": "array",
       "items": { "type": "string" },
       "description": "Source file paths (relative to project root) that support this node."
     },
-    "sourceSymbols": {
+    "source_symbols": {
       "type": "array",
       "items": { "type": "string" },
       "description": "Specific exported symbols (functions, classes, constants) that support this node."
     },
-    "pagePath": {
+    "page_path": {
       "type": "string",
       "description": "Relative path to the Markdown knowledge page for this node, within docs/brain/."
     },
@@ -97,12 +117,12 @@
       "items": { "type": "string" },
       "description": "Optional free-form tags for search and filtering."
     },
-    "lastUpdated": {
+    "last_updated": {
       "type": "string",
       "format": "date",
       "description": "ISO 8601 date when this node was last updated by any agent or human."
     },
-    "lastReviewed": {
+    "last_reviewed": {
       "type": "string",
       "format": "date",
       "description": "ISO 8601 date when a human last reviewed and confirmed this node."
@@ -110,29 +130,46 @@
     "severity": {
       "type": "string",
       "enum": ["low", "med", "high"],
-      "description": "Required on type=caveat nodes. Used by --benchmark to compute risk surface score. Do not omit — the script reads this field directly from nodes.json."
+      "description": "Required on type=caveat nodes. Used by --benchmark to compute risk surface score."
     },
-    "createdBy": {
+    "created_by": {
       "type": "string",
-      "enum": ["human", "knowledge_builder", "knowledge_architect", "knowledge_reviewer"],
+      "enum": ["human", "knowledge_builder", "knowledge_architect", "knowledge_reviewer", "generated"],
       "description": "Who created this node."
     }
   },
   "examples": [
     {
-      "id": "auth/login-flow",
+      "id": "auth-login-flow",
       "type": "flow",
       "name": "User login flow",
       "summary": "The runtime path from a login POST request through credential validation, session creation, and response.",
       "project": "admin-platform",
       "domain": "auth",
       "status": "active",
-      "confidence": "source_supported",
-      "sourceFiles": ["src/api/auth/login.ts", "src/services/AuthService.ts", "src/repositories/UserRepository.ts"],
-      "sourceSymbols": ["loginHandler", "AuthService.validateCredentials", "AuthService.createSession"],
-      "pagePath": "projects/admin-platform/domains/auth/flows/login.md",
-      "lastUpdated": "2026-05-07",
-      "createdBy": "knowledge_builder"
+      "confidence": "supported",
+      "provenance": "source_code",
+      "knowledge_role": "observed",
+      "source_files": ["src/api/auth/login.ts", "src/services/AuthService.ts", "src/repositories/UserRepository.ts"],
+      "source_symbols": ["loginHandler", "AuthService.validateCredentials", "AuthService.createSession"],
+      "page_path": "projects/admin-platform/domains/auth/flows/auth-login-flow.md",
+      "last_updated": "2026-08-07",
+      "created_by": "knowledge_builder"
+    },
+    {
+      "id": "payments-stripe-intent",
+      "type": "concept",
+      "name": "Stripe is the current payment provider",
+      "summary": "The project intends Stripe as its sole payment provider.",
+      "project": "admin-platform",
+      "domain": "payments",
+      "status": "active",
+      "confidence": "verified",
+      "provenance": "human",
+      "knowledge_role": "intent",
+      "source_files": [],
+      "last_updated": "2026-08-07",
+      "created_by": "human"
     }
   ]
 }
