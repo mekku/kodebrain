@@ -604,16 +604,34 @@ def run_benchmark(kb_project_dir: Path, source_root: Path | None = None) -> dict
     ]
 
     # ── Risk surface ──────────────────────────────────────────────────────────
-    risk_nodes = [n for n in nodes if n['type'] == 'caveat']
+    risk_nodes = [n for n in nodes if n['type'] in ('caveat', 'risk')]
     legacy_nodes = [
         n for n in nodes
         if n['status'] in ('legacy', 'deprecated', 'partially_migrated', 'unused')
     ]
 
-    # Severity breakdown from node 'severity' field
+    def _parse_risk_severity(node: dict) -> str:
+        """Extract severity from node field or page markdown ## Severity section."""
+        sev = node.get('severity', '').strip().upper()
+        if sev:
+            return sev
+        page_path = node.get('page_path', '')
+        if page_path:
+            # page_path is relative to docs/brain/projects/, not kb_project_dir
+            md_path = kb_project_dir.parent / page_path
+            if md_path.exists():
+                content = md_path.read_text()
+                m = re.search(r'^## Severity\s*\n+(CRITICAL|HIGH|MED|LOW)', content,
+                              re.MULTILINE | re.IGNORECASE)
+                if m:
+                    return m.group(1).upper()
+        return 'untagged'
+
+    _SEVERITY_WEIGHT = {'CRITICAL': 40, 'HIGH': 30, 'MED': 20, 'LOW': 10}
+
     severity_counts: Counter = Counter()
     for n in risk_nodes:
-        severity_counts[n.get('severity', 'untagged')] += 1
+        severity_counts[_parse_risk_severity(n)] += 1
 
     def _count_headings(md_path: Path) -> int:
         if not md_path.exists():
@@ -635,7 +653,8 @@ def run_benchmark(kb_project_dir: Path, source_root: Path | None = None) -> dict
 
     coverage_score = coverage_pct
     connectedness_score = 100 - (len(orphan_nodes) / n_total * 100) if n_total else 0
-    risk_score = min(100, len(risk_nodes) * 20 + len(legacy_nodes) * 10)
+    risk_score = min(100, sum(_SEVERITY_WEIGHT.get(_parse_risk_severity(n), 20) for n in risk_nodes)
+                       + len(legacy_nodes) * 10)
     overall_score = (coverage_score + confidence_score + connectedness_score + risk_score) / 4
 
     def _grade(score: float) -> str:
