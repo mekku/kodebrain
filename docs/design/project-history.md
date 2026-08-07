@@ -1,10 +1,18 @@
 # Project History — Semantic Time Axis
 
-**Status:** Design
+**Status:** Design rationale (historical)
+**Canonical owner:** `docs/design/spec.md` §15 (Project History)
 **Depends on:** `docs/design/spec.md`
 **Date:** 2026-08-07
 
-> Kode Brain must accumulate value as a project ages. Git tells *what code changed*. Project History tells *why the world of the project changed*.
+> **This document is design rationale, not current specification.**
+> The canonical definition of Project History lives in `docs/design/spec.md` §15.
+> This document preserves the original design thinking and motivation. When it
+> conflicts with `spec.md`, the spec wins.
+
+---
+
+Kode Brain must accumulate value as a project ages. Git tells *what code changed*. Project History tells *why the world of the project changed*.
 
 ---
 

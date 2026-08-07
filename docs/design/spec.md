@@ -2,7 +2,7 @@
 
 **Status:** Canonical
 **Applies to:** Kode Brain vNext
-**Last aligned:** 2026-08-07
+**Last aligned:** 2026-08-07 (consolidation pass — Project History, lifecycle states, flat IDs absorbed)
 
 > This document is the current product contract for Kode Brain. When it conflicts with older documents under `docs/design/`, this document wins until those documents are migrated.
 
@@ -14,11 +14,12 @@ Kode Brain is a **living project knowledge and coordination system for software 
 
 It is not only a codebase documentation generator. It must support a project from the moment the project is conceived, through implementation, maintenance, migration, and long-term evolution.
 
-Kode Brain has three jobs:
+Kode Brain answers four questions:
 
-1. **Define intended reality** — what the project is for, what it should do, how it is intended to be structured, and which constraints must remain true.
-2. **Map observed reality** — what the current source code, configuration, runtime, tests, infrastructure, and other evidence indicate the system actually does.
-3. **Detect and manage drift** — surface disagreements between intended reality and observed reality without silently choosing one side.
+1. **What SHOULD the system be?** — Project Contract, architecture direction, domain responsibilities, decisions, invariants. Intended reality.
+2. **What IS the system?** — Source code, configuration, runtime behavior, tests, infrastructure. Observed reality.
+3. **What are we CHANGING?** — Active changes, drift between intent and observation.
+4. **HOW DID WE GET HERE?** — Completed changes, superseded decisions, incidents, milestones, lessons. Semantic project memory that accumulates value as the project ages.
 
 The primary users are:
 
@@ -26,6 +27,31 @@ The primary users are:
 - coding agents,
 - review and maintenance agents,
 - future contributors who need to understand the project without rediscovering it from scratch.
+
+---
+
+## 1.1 System Diagram
+
+```text
+                    KODE BRAIN SYSTEM
+              "Living knowledge for software projects"
+                           │
+          ┌────────────────┼────────────────┐
+          │                │                │
+          ▼                ▼                ▼
+    KNOWLEDGE MODEL   WORKFLOW MODEL    PROJECT MEMORY
+    (what is true)    (how we act)      (how we got here)
+          │                │                │
+          ▼                ▼                ▼
+   Project Contract    Onboarding       Decisions (lineage)
+   Architecture        Reading Pack     Completed Changes
+   Domains             Active Change    Incidents
+   Invariants          Reconciliation   Milestones
+   Evidence/Drift      Agent Rules      Timeline (generated)
+```
+
+Each box links to its canonical specification section within this document.
+The diagram is navigational — trace a concept from root to its single authoritative definition.
 
 ---
 
@@ -235,6 +261,14 @@ docs/brain/projects/<project>/
   changes/
     active/
     completed/
+
+  incidents/
+
+  milestones/
+
+  history/
+    timeline.md       ← generated (timeline.py)
+    events.json       ← generated temporal index
 
   graph/
     nodes.json
@@ -579,46 +613,67 @@ Instead create an active change record:
 changes/active/YYYY-MM-DD-<slug>.md
 ```
 
-Recommended structure:
+### Change Lifecycle States
+
+Change lifecycle is separate from generic KB `status` (which remains `active` while the record exists):
+
+| change_state | Meaning |
+|---|---|
+| `planned` | Intent recorded, implementation not yet started |
+| `in_progress` | Implementation underway |
+| `implemented` | Code complete, not yet reconciled with KB |
+| `reconciled` | KB updated, drift checked, lessons captured |
+
+After reconciliation, the change moves to `changes/completed/`.
+
+### Change Record Structure
 
 ```md
 # <Change>
 
-Status: planned | in_progress | implemented | reconciled
+State: planned | in_progress | implemented | reconciled
+Outcome: success | partial | abandoned | rolled_back
 
 ## Intent
-
 ## Why
-
 ## Affected Domains
-
 ## Architecture Impact
-
 ## Expected Behavior Changes
-
 ## Invariants
-
 ## Compatibility / Migration
-
 ## Expected Source Areas
 
-## Implementation Evidence
+## Progress Log
+### YYYY-MM-DD
+...
+### YYYY-MM-DD
+...
 
+## Implementation Evidence
+## Outcome (filled after reconciliation)
+## Deviations From Plan
+## Lessons Learned
+## Follow-ups
+## Regressions / Problems Introduced
 ## Open Questions
 ```
 
-Lifecycle:
+### Lifecycle
 
 ```text
 Task arrives
   ↓
 Read Project Contract + relevant domains
   ↓
-Create/update active change
+Retrieve relevant history (past decisions, similar changes, incidents)
+  ↓
+Create/update active change with change_state: planned
   ↓
 Record architecture/decision impact
   ↓
-Implement code
+Implement code (change_state: in_progress)
+  ↓
+Progress Log entries accumulate during implementation
   ↓
 Harvest/review changed evidence
   ↓
@@ -626,14 +681,81 @@ Compare intended change vs implementation
   ↓
 Reconcile canonical current-state docs
   ↓
-Move change to completed
+Fill Outcome, Deviations, Lessons Learned
+  ↓
+Mark reconciled, move to completed
+  ↓
+Regenerate timeline + events
 ```
 
-This satisfies the rule that project knowledge is updated before work begins without making current-state documentation falsely describe unfinished implementation.
+History retrieval before implementation ensures agents learn from past decisions, similar changes, and incidents touching the same domains or nodes.
 
 ---
 
-## 15. Drift
+## 14.1 Status vs Lifecycle State
+
+Generic KB `status` describes knowledge quality (`active`, `stale`, `needs_review`). Lifecycle state is separate and type-specific:
+
+| Record type | Lifecycle field | Values |
+|---|---|---|
+| Change | `change_state` | planned, in_progress, implemented, reconciled |
+| Incident | `incident_state` | ongoing, mitigated, resolved |
+| Decision | `decision_state` | active, superseded, deprecated |
+
+A completed change has `status: active` (knowledge is valid) and `change_state: reconciled` (lifecycle is complete). A superseded decision has `status: active` (knowledge preserved intentionally) and `decision_state: superseded` (no longer current direction).
+
+This separation is enforced in `schema/node.schema.json` and all templates.
+
+---
+
+## 15. Project History (The Fourth Question)
+
+Project History is the semantic time axis — it answers **HOW DID WE GET HERE?**
+
+History records are **append-oriented**. Once recorded, they are not rewritten. If understanding changes, a new record supersedes the old one — the old record remains as evidence of the path taken.
+
+History is **not current truth**. If a lesson must constrain future behavior, it must be promoted:
+
+```
+Incident → lesson extracted → Decision → codified as → Invariant
+```
+
+### Record Types
+
+Four semantic record types carry project history:
+
+**Change (completed):** Records of what was intentionally changed. After reconciliation, captures outcome, deviations from plan, lessons learned, follow-ups, and regressions introduced. Progress log entries within active changes become temporal events.
+
+**Decision:** Why a direction was chosen or changed. Decisions have lineage: a new decision may `supersede` an older one. `superseded_by` is derived by the compiler — only `supersedes` is stored on the new decision. The old decision is not rewritten.
+
+**Incident:** Something that went wrong and was learned from. Includes architectural mistakes, data corruption, migration problems, performance disasters, security near misses, dependency problems, and failed implementation approaches. Records: what happened, root cause, why existing design allowed it, lesson, guardrail introduced, and affected knowledge nodes (enabling task → node → incident traversal).
+
+**Milestone:** A significant project inflection point that changed the mental model — MVP launch, monolith split, provider migration, legacy removal, multi-tenant architecture. Not every release; only events that changed how contributors think about the system.
+
+### Generated Artifacts
+
+History records are the source of truth. Two artifacts are generated from them:
+
+| Artifact | Generator | Purpose |
+|---|---|---|
+| `history/timeline.md` | `timeline.py` | Human-readable chronological timeline |
+| `history/events.json` | `timeline.py` | Temporal index for agent retrieval |
+
+### Agent Workflow Integration
+
+Before a material change, agents must:
+
+1. Identify affected nodes (domains, capabilities, flows)
+2. Load `history/events.json`
+3. Find relevant history: past decisions affecting same nodes, similar completed changes, incidents touching affected nodes, previous rollbacks
+4. Surface historical warnings in the active change
+5. Reading packs include a **Relevant History** section
+
+This makes Kode Brain more valuable as the project ages — accumulated history prevents repeated mistakes.
+
+---
+
+## 16. Drift
 
 A drift item records a meaningful disagreement between intended and observed reality.
 
@@ -656,7 +778,7 @@ Important drift may also become a risk/caveat node.
 
 ---
 
-## 16. Markdown and Generated Graph Artifacts
+## 17. Markdown and Generated Graph Artifacts
 
 Human-readable project knowledge is canonical.
 
@@ -679,7 +801,7 @@ Implementation may transition toward this model in phases, but new design work m
 
 ---
 
-## 17. Reading Behavior for Agents
+## 18. Reading Behavior for Agents
 
 A Kode Brain-enabled coding agent should start at the highest useful level rather than blindly reading source.
 
@@ -696,7 +818,7 @@ The rule is **KB first, source when needed**, not **KB instead of source**.
 
 ---
 
-## 18. Source of Truth Update Rule
+## 19. Source of Truth Update Rule
 
 For material changes, agents must keep Kode Brain aligned as part of the development workflow.
 
@@ -717,7 +839,7 @@ Refactors that do not change behavior may use a lighter update path.
 
 ---
 
-## 19. Greenfield Project Definition Workflow
+## 20. Greenfield Project Definition Workflow
 
 When `/kodebrain onboard` runs on an empty or nearly empty new project, Kode Brain must not attempt to infer domains from nonexistent source.
 
@@ -756,7 +878,7 @@ Unknowns must remain explicit rather than being filled with invented architectur
 
 ---
 
-## 20. Partial and Re-Onboarding Workflow
+## 21. Partial and Re-Onboarding Workflow
 
 If Kode Brain already exists, onboarding should inspect completeness instead of starting over.
 
@@ -780,7 +902,7 @@ No page should be deleted merely because a new onboarding pass cannot confirm it
 
 ---
 
-## 21. Canonical Naming Direction
+## 22. Canonical Naming Direction
 
 The vNext implementation must normalize naming and eliminate contradictory contracts across documentation, schemas, templates, and skill instructions.
 
@@ -793,11 +915,11 @@ Target direction:
 - KB location: `docs/brain/projects/<project>/`
 - Domain hub filename: `<domain>.md`
 
-A single node ID convention must be chosen and enforced everywhere during implementation. Existing documents currently disagree; implementation must resolve this before migration work proceeds.
+Node ID format is flat, hyphen-separated: `<domain-slug>-<type-slug>` (e.g. `auth-login-flow`). Enforced in all schemas, templates, and compilers. The hierarchical format (`auth/login-flow`) is legacy — migrated by `migrate_kb.py` to flat format.
 
 ---
 
-## 22. Compatibility and Migration Principles
+## 23. Compatibility and Migration Principles
 
 vNext may evolve the current schemas and generated layout.
 
@@ -814,7 +936,7 @@ Compatibility is useful; permanent ambiguity is not.
 
 ---
 
-## 23. Non-Goals
+## 24. Non-Goals
 
 Kode Brain is not intended to:
 
@@ -829,7 +951,7 @@ Kode Brain is not intended to:
 
 ---
 
-## 24. Success Criteria
+## 25. Success Criteria
 
 Kode Brain succeeds when:
 
@@ -851,13 +973,27 @@ The project knowledge base becomes more accurate through work rather than steadi
 
 ---
 
-## 25. Precedence Rule During vNext Migration
+## 26. Precedence Rule
 
-Until older design documents are updated:
+Kode Brain follows **specification authority**: every concept has exactly one canonical owner.
 
-1. this `docs/design/spec.md` defines vNext product behavior,
-2. explicit implementation plans for vNext define migration order,
-3. current `SKILL.md` defines only existing behavior where it does not conflict with this spec,
-4. older taxonomy/workflow/skills/open-decision documents are historical design input where they conflict with this spec.
+### Authority hierarchy
 
-Agents implementing vNext must not resolve contradictions by guessing. Use this spec and the implementation plan as the authority.
+1. `docs/design/spec.md` (this document) — canonical product and knowledge root
+2. `schema/node.schema.json` — canonical field contract for all node types
+3. `kodebrain/skill/SKILL.md` — agent behavioral contract (derived from this spec)
+4. `docs/design/implementation-plan-vnext.md` — migration execution order (plan, not spec)
+5. `docs/design/project-history.md` — design rationale for Project History (historical, not current spec)
+6. `docs/design/taxonomy.md`, `skills.md`, `agents.md`, `workflows.md` — older design input, superseded where they conflict
+7. `docs/design/open-decisions.md` — resolved decision records, not current spec
+
+### Rule
+
+When a new concept is introduced:
+
+1. Locate the canonical owner in this spec
+2. Modify that section — do not create a competing document
+3. If no owner exists, add one canonical section and link it from the root diagram
+4. Record rationale in a Decision, not a parallel spec
+
+The anti-pattern is: new idea → create another design document → implement from that document → leave the canonical spec unchanged. This is specification drift.

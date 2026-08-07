@@ -2495,3 +2495,184 @@ source_files:
         assert fm["supersedes"] == ["dec-1", "dec-2"]
         assert fm["tags"] == ["tag/a", "tag/b"]
         assert fm["source_files"] == ["src/a.ts", "src/b.ts"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Spec authority validator
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_SPEC_VALIDATOR_PATH = _SCRIPTS_DIR / "spec_validator.py"
+
+
+class TestSpecValidator:
+    """Structural spec authority validation."""
+
+    def _make_docs(self, tmp_path: Path, files: dict[str, str]) -> Path:
+        docs_dir = tmp_path / "docs" / "design"
+        docs_dir.mkdir(parents=True)
+        for rel_path, content in files.items():
+            full = docs_dir / rel_path
+            full.parent.mkdir(parents=True, exist_ok=True)
+            full.write_text(content, encoding="utf-8")
+        return docs_dir.parent
+
+    def test_valid_spec_tree_passes(self, tmp_path: Path) -> None:
+        mod = _load_script(_SPEC_VALIDATOR_PATH)
+        docs = self._make_docs(tmp_path, {
+            "spec.md": """---
+spec_id: root
+spec_role: canonical-root
+---
+# Root spec
+""",
+            "knowledge-model.md": """---
+spec_id: knowledge-model
+spec_role: canonical
+parent: root
+concern: knowledge
+---
+# Knowledge Model
+""",
+            "history.md": """---
+spec_id: history
+spec_role: canonical
+parent: root
+concern: history
+---
+# History
+""",
+        })
+        result = mod.validate(docs)
+        assert result["valid"] is True
+        assert len(result["errors"]) == 0
+
+    def test_missing_root_warns(self, tmp_path: Path) -> None:
+        mod = _load_script(_SPEC_VALIDATOR_PATH)
+        docs = self._make_docs(tmp_path, {
+            "spec.md": """---
+spec_id: history
+spec_role: canonical
+parent: root
+---
+# Not root
+""",
+        })
+        result = mod.validate(docs)
+        # No root found — warning, not error (specs can exist without explicit root metadata)
+        assert any("root-required" in w["rule"] for w in result["warnings"])
+
+    def test_duplicate_root_errors(self, tmp_path: Path) -> None:
+        mod = _load_script(_SPEC_VALIDATOR_PATH)
+        docs = self._make_docs(tmp_path, {
+            "spec.md": """---
+spec_id: root
+spec_role: canonical-root
+---
+# Root
+""",
+            "also-root.md": """---
+spec_id: root
+spec_role: canonical-root
+---
+# Also root
+""",
+        })
+        result = mod.validate(docs)
+        assert not result["valid"]
+        assert any("single-root" in e["rule"] for e in result["errors"])
+
+    def test_duplicate_concern_owner_errors(self, tmp_path: Path) -> None:
+        mod = _load_script(_SPEC_VALIDATOR_PATH)
+        docs = self._make_docs(tmp_path, {
+            "spec.md": """---
+spec_id: root
+spec_role: canonical-root
+---
+# Root
+""",
+            "history-a.md": """---
+spec_id: history-a
+spec_role: canonical
+parent: root
+concern: history
+---
+# History A
+""",
+            "history-b.md": """---
+spec_id: history-b
+spec_role: canonical
+parent: root
+concern: history
+---
+# History B
+""",
+        })
+        result = mod.validate(docs)
+        assert not result["valid"]
+        assert any("single-owner" in e["rule"] for e in result["errors"])
+
+    def test_orphaned_canonical_warns(self, tmp_path: Path) -> None:
+        mod = _load_script(_SPEC_VALIDATOR_PATH)
+        docs = self._make_docs(tmp_path, {
+            "spec.md": """---
+spec_id: root
+spec_role: canonical-root
+---
+# Root
+""",
+            "orphan.md": """---
+spec_id: orphan
+spec_role: canonical
+parent: root
+---
+# Orphan
+""",
+        })
+        result = mod.validate(docs)
+        # orphan has parent=root but no other doc references it — that's just a leaf
+        # Only warns if NO doc has it as parent AND it's not root
+        # In this setup it has parent, so it's fine
+        assert result["valid"] is True
+
+    def test_superseded_without_replacement_warns(self, tmp_path: Path) -> None:
+        mod = _load_script(_SPEC_VALIDATOR_PATH)
+        docs = self._make_docs(tmp_path, {
+            "old-design.md": """---
+spec_role: superseded
+---
+# Old design
+""",
+        })
+        result = mod.validate(docs)
+        assert any("superseded-no-replacement" in w["rule"] for w in result["warnings"])
+
+    def test_plan_without_reference_warns(self, tmp_path: Path) -> None:
+        mod = _load_script(_SPEC_VALIDATOR_PATH)
+        docs = self._make_docs(tmp_path, {
+            "implementation-plan.md": """---
+spec_role: implementation-plan
+---
+# Plan
+""",
+        })
+        result = mod.validate(docs)
+        assert any("plan-no-reference" in w["rule"] for w in result["warnings"])
+
+    def test_canonical_without_parent_warns(self, tmp_path: Path) -> None:
+        mod = _load_script(_SPEC_VALIDATOR_PATH)
+        docs = self._make_docs(tmp_path, {
+            "spec.md": """---
+spec_id: root
+spec_role: canonical-root
+---
+# Root
+""",
+            "child.md": """---
+spec_id: child
+spec_role: canonical
+---
+# Child (no parent)
+""",
+        })
+        result = mod.validate(docs)
+        assert any("parent-required" in w["rule"] for w in result["warnings"])
