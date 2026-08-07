@@ -33,6 +33,7 @@
         "caveat",
         "legacy_area",
         "migration_state",
+        "change",
         "incident",
         "milestone"
       ]
@@ -132,8 +133,28 @@
     },
     "severity": {
       "type": "string",
-      "enum": ["low", "med", "high"],
-      "description": "Required on type=caveat nodes. Used by --benchmark to compute risk surface score."
+      "enum": ["critical", "high", "medium", "low"],
+      "description": "Severity for caveat and incident nodes. Used by --benchmark to compute risk surface score."
+    },
+    "change_state": {
+      "type": "string",
+      "enum": ["planned", "in_progress", "implemented", "reconciled"],
+      "description": "Lifecycle state for change records. Status field holds KB quality (active/stale/etc)."
+    },
+    "incident_state": {
+      "type": "string",
+      "enum": ["ongoing", "mitigated", "resolved"],
+      "description": "Lifecycle state for incident records."
+    },
+    "decision_state": {
+      "type": "string",
+      "enum": ["active", "superseded", "deprecated"],
+      "description": "Lifecycle state for decision records. Superseded decisions remain in KB for lineage."
+    },
+    "supersedes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Decision IDs this decision supersedes. Stored only on the NEW decision. Compiler derives superseded_by on old decisions."
     },
     "created_by": {
       "type": "string",

@@ -291,7 +291,6 @@ def compile_graph(kb_dir: Path) -> dict[str, Any]:
             "architecture_data": "architecture",
             "architecture_deployment": "architecture",
             "architecture_integrations": "architecture",
-            "change": "decision",
         }
         node_type = type_map.get(node_type, node_type)
 

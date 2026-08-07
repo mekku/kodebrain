@@ -10,7 +10,6 @@ project: {{project-slug}}
 domain: {{domain-slug}}
 source_files: []
 supersedes: []
-superseded_by: []
 last_updated: {{YYYY-MM-DD}}
 last_reviewed: {{YYYY-MM-DD}}
 tags:
@@ -25,8 +24,7 @@ tags:
 **Author:** {{name or "unknown"}}
 **State:** active | superseded | deprecated
 
-<!-- If superseded_by is populated, this decision is no longer current. -->
-<!-- If supersedes is populated, this decision replaces the listed decisions. -->
+<!-- Store supersedes on the NEW decision only. superseded_by is derived by the compiler. -->
 
 Justifies [[{{domain-slug}}-{{concept-slug}}|{{Concept}}]] / affects [[{{domain-slug}}-{{capability-slug}}|{{Capability}}]].
 

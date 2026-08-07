@@ -70,9 +70,19 @@ tags:
 
 {{What actually happened? Compare intent vs result.}}
 
+## Progress Log
+
+<!-- Append-only entries. Compiler derives events from these. -->
+
+### {{YYYY-MM-DD}}
+{{What was done today. What was discovered. What changed.}}
+
+### {{YYYY-MM-DD}}
+{{...}}
+
 ## Deviations From Plan
 
-<!-- What changed from the original intent during implementation? -->
+<!-- What changed from the original intent during implementation? Summarized from progress log. -->
 
 ## Lessons Learned
 

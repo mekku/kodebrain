@@ -508,28 +508,71 @@ Run the same flow as `onboard`. If user specifically requested `init` rather tha
 
 ## Agent Working Pattern (vNext)
 
-An agent working in a KB-enabled codebase should start at the highest useful level:
+An agent working in a KB-enabled codebase must consult history before making material changes:
 
-**Session start — load context before touching any code:**
+**Session start — load context:**
 ```
 /kodebrain reading-pack "<task description>"
 ```
-Read the saved reading pack. It contains: relevant domain hubs, flow paths, source file hints, and active warnings.
+Read the saved reading pack. It contains: relevant domain pages, flow paths, source hints, active warnings, AND relevant history (past decisions, similar changes, incidents, rollbacks).
 
-**Before material changes — record intent:**
-Read relevant Project Contract and domain pages. Check for active changes. If this is a material behavior/architecture/domain/API/invariant change, create an active change record in `changes/active/` before implementing.
+**Before material changes — consult history, then record intent:**
+```
+1. Read Project Contract + relevant domain pages
+2. Identify affected nodes (domains, capabilities, flows)
+3. Load history/events.json (or generate via timeline.py)
+4. Find relevant history:
+   - Decisions touching same domain/nodes (active AND superseded)
+   - Similar past changes (same domain, related architecture)
+   - Incidents touching affected nodes or similar patterns
+   - Previous rollbacks
+5. Surface historical warnings in the active change
+6. Create/update active change record in changes/active/
+```
+
+**Reading pack must include a Relevant History section:**
+
+```markdown
+## Relevant History
+
+### Previous Decisions
+- [[decision-id|Decision Title]] — {{why relevant}}
+- ...
+
+### Similar Past Changes
+- [[change-id|Change Title]] — outcome: {{success/partial/rolled_back}}
+- ...
+
+### Incidents / Lessons
+- [[incident-id|Incident Title]] — {{lesson summary}}
+- ...
+
+### Superseded Approaches
+- ...
+
+### Historical Warnings
+⚠ This change touches payment retry behavior.
+A previous retry redesign caused duplicate captures.
+Read [[incident-payment-duplicate-capture]] before editing.
+```
 
 **After editing source files — keep the KB current:**
 ```
 /kodebrain update --files src/services/TaskService.ts src/api/tasks/tasks.controller.ts
 ```
 
-**After implementation — reconcile:**
+**After implementation — reconcile + capture lessons:**
 1. Harvest/review changed files.
 2. Compare intended change vs implementation.
 3. Update current-state KB pages.
 4. Surface drift if intent and implementation diverge.
-5. Mark change reconciled and move to `changes/completed/`.
+5. Fill in Outcome, Deviations From Plan, Lessons Learned in the change record.
+6. If a new pattern of failure or risk emerged, create an incident record.
+7. Mark change reconciled and move to `changes/completed/`.
+8. Regenerate: `python3 <skill_base_dir>/scripts/timeline.py <kb_dir>`
+
+**Recording incidents:**
+When something goes wrong — architectural mistake, data corruption, migration problem, performance disaster, security near miss, dependency problem, or failed implementation approach — create an incident record in `incidents/`. Use `templates/incident.md`.
 
 **Answering questions during the session:**
 ```
@@ -537,7 +580,7 @@ Read relevant Project Contract and domain pages. Check for active changes. If th
 ```
 Answer from KB pages. Read source files directly when: KB reports `confidence: stale`, harvest output is insufficient, dynamic wiring needs verification, or source and KB contradict.
 
-**Rule of thumb:** KB first, source when needed — not KB instead of source.
+**Rule of thumb:** KB first, source when needed — not KB instead of source. History first for patterns — not KB then surprise.
 
 ---
 
@@ -684,6 +727,12 @@ Page templates are in `templates/` relative to this SKILL.md:
 - `templates/architecture-integrations.md`
 - `templates/drift-report.md`
 - `templates/knowledge-gaps.md`
+- `templates/incident.md`
+- `templates/milestone.md`
+
+## History Scripts
+
+- `scripts/timeline.py` — generate history/timeline.md + history/events.json
 
 ## Schemas
 

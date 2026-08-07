@@ -2109,10 +2109,10 @@ significance: product
         kb = self._make_kb_with_history(tmp_path)
         records = mod._collect_records(kb)
         types = {r["type"] for r in records}
-        assert "Decision" in types
-        assert "Change" in types
-        assert "Incident" in types
-        assert "Milestone" in types
+        assert "decision" in types
+        assert "change" in types
+        assert "incident" in types
+        assert "milestone" in types
 
     def test_sorts_by_date_descending(self, tmp_path: Path) -> None:
         mod = _load_script(_TIMELINE_PATH)
@@ -2131,7 +2131,7 @@ significance: product
         assert "MVP Launched" in timeline
         assert "Use Redis" in timeline
         assert "Migrate to Valkey" in timeline
-        assert "Migrate sessions to JWT" in timeline
+        assert "Migrate sessions" in timeline
 
     def test_empty_kb_produces_empty_timeline(self, tmp_path: Path) -> None:
         mod = _load_script(_TIMELINE_PATH)

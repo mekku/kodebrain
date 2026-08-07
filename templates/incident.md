@@ -60,6 +60,13 @@ tags:
 
 {{What check, invariant, test, or monitor now prevents recurrence? Link to invariant/decision if promoted.}}
 
+## Affected Knowledge
+
+<!-- Nodes touched by this incident — enables traversal: task → node → incident -->
+
+- [[{{node-id}}|{{Node Name}}]]
+- [[{{node-id}}|{{Node Name}}]]
+
 ## Related Changes
 
 - [[{{change-id}}|{{Change Title}}]]
