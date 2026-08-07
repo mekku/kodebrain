@@ -27,10 +27,11 @@ Convert any codebase into a living knowledge map — domains, capabilities, flow
 
 Point `/kodebrain` at any software project to get a structured, navigable knowledge map. Persistent across sessions. Honest confidence labels. Built for projects that grew organically — not perfect systems.
 
-Kode Brain has three jobs:
+Kode Brain has four jobs:
 1. **Define intended reality** — what the project is for, what it should do, constraints.
 2. **Map observed reality** — what source, config, runtime, tests show the system actually does.
 3. **Detect and manage drift** — surface disagreements between intent and observation.
+4. **Record project history** — decisions, changes, incidents, milestones with lineage and temporal events.
 
 ---
 
@@ -63,6 +64,7 @@ Each node carries a `knowledge_role`:
 - `intent` — what should be true (from human, project docs, architecture decisions)
 - `observed` — what implementation exists (from source, config, runtime)
 - `mixed` — both intent and observation
+- `reference` — navigation/context projection of a canonical source elsewhere; normative questions route to canonical_source
 
 ### Drift
 
@@ -107,6 +109,10 @@ docs/brain/projects/<project>/
     risks/<risk-slug>.md
 
   decisions/
+
+  incidents/
+
+  milestones/
 
   changes/
     active/
@@ -165,7 +171,7 @@ tags:
 
 **Valid `provenance`:** `human` `project_document` `source_code` `configuration` `runtime` `test` `git` `generated`
 
-**Valid `knowledge_role`:** `intent` `observed` `mixed`
+**Valid `knowledge_role`:** `intent` `observed` `mixed` `reference`
 
 ---
 
@@ -319,33 +325,47 @@ If code clustering conflicts with intended domain boundaries, preserve both and 
 
 Persist progress. Partial mapping is acceptable if gaps are explicit.
 
-**8. Write reports.**
-- `reports/knowledge-gaps.md` — what is still unknown
-- `reports/drift.md` — intent vs observation disagreements
-- `reports/unmapped-files.md` — files not assigned to any domain
-- `reports/suspected-legacy.md` — nodes flagged legacy or unused
-- `reports/needs-review.md` — ambiguous or needs_human_review items
-
-**9. Compile graph indexes.** Write `nodes.json` and `edges.json`. Generate `file-index.json`:
+**8. Compile graph indexes.** Write `nodes.json`, `edges.json`, and `diagnostics.json`:
+```bash
+python3 <skill_base_dir>/scripts/compile_graph.py <kb_dir>
+```
+Generate `file-index.json`:
 ```bash
 python3 <skill_base_dir>/scripts/harvest.py \
   --build-index docs/brain/projects/<name>/graph/nodes.json
 ```
 Save `file-hashes.json` from harvest output.
 
-**10. Write Obsidian config.** Copy `obsidian-vault-config/graph.json` and `app.json` to `docs/brain/.obsidian/`. Only on first onboard (don't overwrite if already present).
+**9. Run validation gate.** The gate is mandatory — onboard may not declare success without passing it:
+```bash
+python3 <skill_base_dir>/scripts/validate.py <kb_dir> --project-root <root> --render
+```
 
-**11. Install project-level platform configs.**
+**10. Check completion state.** Read `graph/validation-result.json`:
+- `completion_state: blocked` → print ERROR findings, tell user to resolve, STOP. Do NOT declare onboard complete.
+- `completion_state: complete_with_drift` → print summary, note drift items
+- `completion_state: needs_review` → print summary, note review items
+- `completion_state: complete` → print summary
+
+Reports (`drift.md`, `needs-review.md`, `knowledge-gaps.md`) are rendered from validation findings by the `--render` flag — they are pure projections, never independently authored.
+
+**11. Write unmapped-files and suspected-legacy reports.** These are not validation-derived:
+- `reports/unmapped-files.md` — files not assigned to any domain
+- `reports/suspected-legacy.md` — nodes flagged legacy or unused
+
+**12. Write Obsidian config.** Copy `obsidian-vault-config/graph.json` and `app.json` to `docs/brain/.obsidian/`. Only on first onboard (don't overwrite if already present).
+
+**13. Install project-level platform configs.**
 ```bash
 kodebrain project install <root> 2>/dev/null \
   && echo "Platform configs written." \
   || echo "Tip: pip install kodebrain && kodebrain project install . to set up platform configs."
 ```
 
-**12. Print summary.**
+**14. Print summary.** Use `validation-result.json` for completion state, drift, review, and gap counts:
 ```
 Kode Brain onboard complete — <project name>
-State:            <onboarding_state>
+State:            <completion_state>  (from validation-result.json)
 Domains:          N
 Capabilities:     N
 Flows:            N
@@ -353,8 +373,9 @@ Concepts:         N
 Models:           N
 Risks:            N
 Unmapped files:   N  (see reports/unmapped-files.md)
-Drift items:      N  (see reports/drift.md)
-Knowledge gaps:   N  (see reports/knowledge-gaps.md)
+Drift items:      N  (from validation-result.json)
+Review items:     N  (from validation-result.json)
+Knowledge gaps:   N  (from validation-result.json)
 
 KB location:      docs/brain/projects/<name>/
 Graph view:       Open docs/brain/ as an Obsidian vault → Graph view

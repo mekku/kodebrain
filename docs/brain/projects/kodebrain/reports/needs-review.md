@@ -1,65 +1,67 @@
----
-type: report
-project: kodebrain
-confidence: supported
-provenance: generated
-last_updated: "2026-08-07"
----
-
 # Needs Review
 
-Derived from `graph/validation-result.json`.
+**63 item(s) need review.**
 
-## Items Needing Human Review
-
-### REV-INT-001: kb-core-confidence — intent with observed sections
-
-`knowledge_role: intent` but contains "Source Evidence" section with source references. Consider `knowledge_role: mixed`.
-
-### REV-INT-002: kb-core-drift — intent with observed sections
-
-`knowledge_role: intent` but contains "Source Evidence" section with source references. Consider `knowledge_role: mixed`.
-
-### REV-INT-003: kb-core-knowledge-layers — intent with observed sections
-
-`knowledge_role: intent` but contains "Source Evidence" section with source references. Consider `knowledge_role: mixed`.
-
-### REV-INT-004: kb-core-provenance — intent with observed sections
-
-`knowledge_role: intent` but contains "Source Evidence" section with source references. Consider `knowledge_role: mixed`.
-
-### REV-INT-005: kb-core-knowledge-edge-model — intent with observed sections
-
-`knowledge_role: intent` but contains "Source Evidence" section. Model pages describe schema, which is both intended contract and observed implementation. Consider `knowledge_role: mixed`.
-
-### REV-INT-006: kb-core-knowledge-node-model — intent with observed sections
-
-`knowledge_role: intent` but contains "Source Evidence" section. Same as edge model.
-
-### REV-INT-007: kb-governance-spec-authority — intent with observed sections
-
-`knowledge_role: intent` but contains "Source Evidence" section with source references. Consider `knowledge_role: mixed`.
-
-### REV-INT-008: kb-workflow-change-lifecycle — intent with observed sections
-
-`knowledge_role: reference` (fixed) but still contains structured observed-like sections. Verify the reference template is applied correctly.
-
-## Resolution
-
-Most REVIEW items are about `knowledge_role` classification — concept pages that describe design intent but also cite source evidence. These are low-risk: the content is accurate, but the role should be `mixed` rather than `intent`. No urgency to fix; can be addressed during the next scan cycle.
-
-## How Items Get Added
-
-Items are added to this report by the onboard validation gate (`validate.py`) when:
-- A claim has `confidence: ambiguous`
-- A claim has `confidence: needs_human_review`
-- An `intent` page contains sections normally found in `observed` pages (Source Evidence, Runtime Path)
-- Source files referenced by a KB page have been deleted
-- Harvest detects a status signal (`DEPRECATED`, `TODO`) that needs human interpretation
-
-## Review Cadence
-
-KB pages should be reviewed when:
-- `/kodebrain scan` detects changed source files
-- `/kodebrain review` flags stale claims
-- Before acting on any page with `confidence: inferred` or lower
+- **REV-REF-001** [referential-integrity/orphan-wikilink] : Wiki-link target 'node-id' does not exist (linked from 'kb-core-graph-compilation' via 'related_to')
+- **REV-REF-002** [referential-integrity/orphan-wikilink] : Wiki-link target 'wiki-links' does not exist (linked from 'kb-core-graph-compilation' via 'related_to')
+- **REV-REF-003** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-project-node-id-format' does not exist (linked from 'kb-core-graph-compilation' via 'related_to')
+- **REV-REF-004** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-substrate-compile-graph' does not exist (linked from 'kb-core-graph-compilation' via 'related_to')
+- **REV-REF-005** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-workflow-scan' does not exist (linked from 'kb-core-confidence' via 'related_to')
+- **REV-REF-006** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-core-drift-detection' does not exist (linked from 'kb-core-drift' via 'related_to')
+- **REV-REF-007** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-workflow-scan' does not exist (linked from 'kb-core-drift' via 'related_to')
+- **REV-REF-008** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-core-drift-detection' does not exist (linked from 'kb-core-knowledge-layers' via 'related_to')
+- **REV-REF-009** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-core-drift-detection' does not exist (linked from 'kb-core-provenance' via 'related_to')
+- **REV-REF-010** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-core-knowledge-role' does not exist (linked from 'kb-core' via 'related_to')
+- **REV-REF-011** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-core-harvest-policy' does not exist (linked from 'kb-core' via 'related_to')
+- **REV-REF-012** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-core-drift-detection' does not exist (linked from 'kb-core' via 'related_to')
+- **REV-REF-013** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-core-harvest' does not exist (linked from 'kb-core' via 'related_to')
+- **REV-REF-014** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-core-graph-compile-flow' does not exist (linked from 'kb-core' via 'related_to')
+- **REV-REF-015** [referential-integrity/orphan-wikilink] : Wiki-link target 'wiki-links' does not exist (linked from 'kb-core-knowledge-edge-model' via 'related_to')
+- **REV-REF-016** [referential-integrity/orphan-wikilink] : Wiki-link target 'target' does not exist (linked from 'kb-core-knowledge-edge-model' via 'related_to')
+- **REV-REF-017** [referential-integrity/orphan-wikilink] : Wiki-link target 'node-id' does not exist (linked from 'kb-core-knowledge-node-model' via 'related_to')
+- **REV-REF-018** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-governance-precedence' does not exist (linked from 'kb-governance-spec-authority' via 'related_to')
+- **REV-REF-019** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-governance-precedence' does not exist (linked from 'kb-governance' via 'related_to')
+- **REV-REF-020** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-governance-artifact-classes' does not exist (linked from 'kb-governance' via 'related_to')
+- **REV-REF-021** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-governance-compatibility' does not exist (linked from 'kb-governance' via 'related_to')
+- **REV-REF-022** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-governance-non-goals' does not exist (linked from 'kb-governance' via 'related_to')
+- **REV-REF-023** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-governance-success-criteria' does not exist (linked from 'kb-governance' via 'related_to')
+- **REV-REF-024** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-history-decision-lineage-flow' does not exist (linked from 'kb-history-decision-lifecycle' via 'related_to')
+- **REV-REF-025** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-history-timeline-generation' does not exist (linked from 'kb-history-decision-lifecycle' via 'related_to')
+- **REV-REF-026** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-history-incident-lifecycle' does not exist (linked from 'kb-history' via 'related_to')
+- **REV-REF-027** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-history-decision-lineage' does not exist (linked from 'kb-history' via 'related_to')
+- **REV-REF-028** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-history-append-only' does not exist (linked from 'kb-history' via 'related_to')
+- **REV-REF-029** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-history-lesson-promotion' does not exist (linked from 'kb-history' via 'related_to')
+- **REV-REF-030** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-history-timeline-generation' does not exist (linked from 'kb-history' via 'related_to')
+- **REV-REF-031** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-history-history-retrieval' does not exist (linked from 'kb-history' via 'related_to')
+- **REV-REF-032** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-history-decision-lineage-flow' does not exist (linked from 'kb-history' via 'related_to')
+- **REV-REF-033** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-project-node-id-format' does not exist (linked from 'kb-project' via 'related_to')
+- **REV-REF-034** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-project-hub-contract' does not exist (linked from 'kb-project' via 'related_to')
+- **REV-REF-035** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-project-domain-contract' does not exist (linked from 'kb-project' via 'related_to')
+- **REV-REF-036** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-project-architecture-contract' does not exist (linked from 'kb-project' via 'related_to')
+- **REV-REF-037** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-project-page-layout' does not exist (linked from 'kb-project' via 'related_to')
+- **REV-REF-038** [referential-integrity/orphan-wikilink] : Wiki-link target 'wiki-link' does not exist (linked from 'kb-project' via 'related_to')
+- **REV-REF-039** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-core-harvest-policy' does not exist (linked from 'kb-substrate-harvest' via 'related_to')
+- **REV-REF-040** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-substrate-sha-detection' does not exist (linked from 'kb-substrate-harvest' via 'related_to')
+- **REV-REF-041** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-substrate-harvest-escalation' does not exist (linked from 'kb-substrate' via 'related_to')
+- **REV-REF-042** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-substrate-sha-detection' does not exist (linked from 'kb-substrate' via 'related_to')
+- **REV-REF-043** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-substrate-compile-graph' does not exist (linked from 'kb-substrate' via 'related_to')
+- **REV-REF-044** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-substrate-timeline' does not exist (linked from 'kb-substrate' via 'related_to')
+- **REV-REF-045** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-substrate-state-classification' does not exist (linked from 'kb-substrate' via 'related_to')
+- **REV-REF-046** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-substrate-migration' does not exist (linked from 'kb-substrate' via 'related_to')
+- **REV-REF-047** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-substrate-validation' does not exist (linked from 'kb-substrate' via 'related_to')
+- **REV-REF-048** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-history-lesson-promotion' does not exist (linked from 'kb-workflow-change-reconciliation' via 'related_to')
+- **REV-REF-049** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-workflow-greenfield-mode' does not exist (linked from 'kb-workflow-onboard' via 'related_to')
+- **REV-REF-050** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-workflow-brownfield-mode' does not exist (linked from 'kb-workflow-onboard' via 'related_to')
+- **REV-REF-051** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-history-incident-lifecycle' does not exist (linked from 'kb-workflow-status-lifecycle-separation' via 'related_to')
+- **REV-REF-052** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-history-lesson-promotion' does not exist (linked from 'kb-workflow-change-reconciliation-flow' via 'related_to')
+- **REV-REF-053** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-workflow-greenfield-mode' does not exist (linked from 'kb-workflow-onboard-flow' via 'related_to')
+- **REV-REF-054** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-workflow-brownfield-mode' does not exist (linked from 'kb-workflow-onboard-flow' via 'related_to')
+- **REV-REF-055** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-workflow-greenfield-mode' does not exist (linked from 'kb-workflow' via 'related_to')
+- **REV-REF-056** [referential-integrity/orphan-wikilink] : Wiki-link target 'kb-workflow-brownfield-mode' does not exist (linked from 'kb-workflow' via 'related_to')
+- **REV-INT-001** [intent-observed-consistency/intent-with-observed-sections] kb-core-confidence: Intent node 'kb-core-confidence' contains sections normally found in observed pages. Consider knowledge_role=mixed.
+- **REV-INT-002** [intent-observed-consistency/intent-with-observed-sections] kb-core-drift: Intent node 'kb-core-drift' contains sections normally found in observed pages. Consider knowledge_role=mixed.
+- **REV-INT-003** [intent-observed-consistency/intent-with-observed-sections] kb-core-knowledge-layers: Intent node 'kb-core-knowledge-layers' contains sections normally found in observed pages. Consider knowledge_role=mixed.
+- **REV-INT-004** [intent-observed-consistency/intent-with-observed-sections] kb-core-provenance: Intent node 'kb-core-provenance' contains sections normally found in observed pages. Consider knowledge_role=mixed.
+- **REV-INT-005** [intent-observed-consistency/intent-with-observed-sections] kb-core-knowledge-edge-model: Intent node 'kb-core-knowledge-edge-model' contains sections normally found in observed pages. Consider knowledge_role=mixed.
+- **REV-INT-006** [intent-observed-consistency/intent-with-observed-sections] kb-core-knowledge-node-model: Intent node 'kb-core-knowledge-node-model' contains sections normally found in observed pages. Consider knowledge_role=mixed.
+- **REV-INT-007** [intent-observed-consistency/intent-with-observed-sections] kb-governance-spec-authority: Intent node 'kb-governance-spec-authority' contains sections normally found in observed pages. Consider knowledge_role=mixed.

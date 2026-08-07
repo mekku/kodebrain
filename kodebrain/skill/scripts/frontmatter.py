@@ -7,9 +7,9 @@ Single source of truth for Markdown frontmatter parsing. All compilers
 Supports:
   - Simple key: value pairs
   - Multi-line YAML lists (items prefixed with -)
+  - Nested maps (indented sub-keys)
   - Quoted and unquoted string values
   - null values
-  - Nested structures not required for current schema
 
 Usage:
   from frontmatter import parse, serialize
@@ -46,6 +46,39 @@ def _parse_yaml_list(lines: list[str], start_idx: int) -> tuple[list[str], int]:
         else:
             i += 1
     return items, i
+
+
+def _is_nested_map_line(line: str) -> bool:
+    """Check if a line looks like an indented YAML key: value (start of nested map)."""
+    stripped = line.strip()
+    if not stripped or stripped.startswith("#") or stripped.startswith("- "):
+        return False
+    return line.startswith("  ") and ":" in stripped
+
+
+def _parse_yaml_map(lines: list[str], start_idx: int) -> tuple[dict[str, Any], int]:
+    """Parse indented YAML key: value pairs as a nested dict. Returns (map, next_index)."""
+    result: dict[str, Any] = {}
+    i = start_idx
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            i += 1
+            continue
+        # Detect indent level — nested entries have 2+ leading spaces
+        if not line.startswith("  ") and not line.startswith("\t"):
+            # Back to parent level
+            break
+        if ":" in stripped:
+            key, _, val = stripped.partition(":")
+            key = key.strip()
+            val = val.strip()
+            if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
+                val = val[1:-1]
+            result[key] = val
+        i += 1
+    return result, i
 
 
 def parse(text: str) -> tuple[dict[str, Any], str]:
@@ -91,6 +124,11 @@ def parse(text: str) -> tuple[dict[str, Any], str]:
                     items, i = _parse_yaml_list(lines, i + 1)
                     fm[key] = items
                     continue  # i now points at next top-level key — process it
+                # Check if next line starts a nested map (indented key: value)
+                if i + 1 < len(lines) and _is_nested_map_line(lines[i + 1]):
+                    nested, i = _parse_yaml_map(lines, i + 1)
+                    fm[key] = nested
+                    continue
                 else:
                     fm[key] = [] if value == "[]" else ""
             elif value == "null":
@@ -140,7 +178,14 @@ def serialize(fm: dict[str, Any]) -> str:
 
 def _write_field(lines: list[str], key: str, val: Any) -> None:
     """Write a single YAML field to lines list."""
-    if isinstance(val, list):
+    if isinstance(val, dict):
+        lines.append(f"{key}:")
+        for sub_key, sub_val in val.items():
+            if isinstance(sub_val, str) and (" " in sub_val or ":" in sub_val):
+                lines.append(f'  {sub_key}: "{sub_val}"')
+            else:
+                lines.append(f"  {sub_key}: {sub_val}")
+    elif isinstance(val, list):
         if not val:
             lines.append(f"{key}: []")
         else:

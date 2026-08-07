@@ -3,23 +3,21 @@ spec_id: onboard-validation-gate
 spec_role: canonical
 parent: root
 owns:
-  - validation.gate.process
-  - validation.severity.model
-  - validation.completion.states
-  - validation.report.derivation
-  - canonical-source.field
-  - canonical.projection.rules
+  - validation.severity-model
+  - validation.completion-state
+  - validation.finding-model
 ---
 
 # Onboard Completion Gate
 
-Canonical owner for: onboard validation gate process, severity model (ERROR/DRIFT/REVIEW), completion states, report derivation from validation results, `canonical_source` field semantics, canonical projection rules.
+Canonical owner for: validation severity model (ERROR/DRIFT/REVIEW), completion states (complete/complete_with_drift/needs_review/blocked), finding model.
 
-**Note to root spec maintainer:** After approval, route sections to canonical owners:
-- Validation gate process → `workflow-model.md` (Workflow owns onboard processes)
-- `canonical_source` field → `knowledge-model.md` (Knowledge owns node field semantics)
-- Projection rules → `governance.md` (Governance owns authority rules)
-- Severity model + completion states: this spec retains ownership (new concept: validation semantics)
+**Ownership routing (applied after approval):**
+- Validation gate process (when validation runs, onboard integration) → `workflow-model.md` (Workflow owns onboard processes)
+- `canonical_source` field semantics → `knowledge-model.md` (Knowledge owns node field semantics)
+- Canonical projection rules → `governance.md` (Governance owns authority rules)
+- Machine shape of `canonical_source` → `schema/node.schema.json` (Schema owns field contracts)
+- Severity model + completion states + finding model: this spec retains ownership
 
 ---
 

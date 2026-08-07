@@ -18,6 +18,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from frontmatter import parse as parse_frontmatter
+
 
 # ── helpers ──────────────────────────────────────────────────────────
 
@@ -48,52 +50,6 @@ def resolve_page_path(kb_dir: Path, page_path: str) -> Optional[Path]:
 
 def find_md_files(kb_dir: Path) -> List[Path]:
     return sorted(p for p in kb_dir.rglob("*.md") if p.is_file())
-
-
-def parse_frontmatter(text: str) -> Tuple[Dict[str, Any], str]:
-    """Extract YAML frontmatter and body from markdown text.
-    Handles simple YAML frontmatter (--- delimited)."""
-    if not text.startswith("---"):
-        return {}, text
-    parts = text.split("---", 2)
-    if len(parts) < 3:
-        return {}, text
-    yaml_str = parts[1].strip()
-    body = parts[2].strip()
-
-    # Simple YAML parser for known flat + list fields
-    fm: Dict[str, Any] = {}
-    current_list_key = None
-    for line in yaml_str.split("\n"):
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
-
-        # List item
-        if stripped.startswith("- "):
-            list_val = stripped[2:].strip().strip('"').strip("'")
-            if current_list_key:
-                fm.setdefault(current_list_key, []).append(list_val)
-            continue
-
-        # Key: value
-        if ":" in stripped:
-            # End current list context
-            current_list_key = None
-
-            key, _, val = stripped.partition(":")
-            key = key.strip()
-            val = val.strip().strip('"').strip("'")
-
-            if val == "":
-                # Could be start of inline list or nested object
-                current_list_key = key
-                continue
-            else:
-                fm[key] = val
-                current_list_key = None
-
-    return fm, body
 
 
 def extract_section(text: str, heading: str) -> Optional[str]:
@@ -216,20 +172,29 @@ CANONICAL_REGISTRY = {
 
 # ── Check 1: Referential Integrity ───────────────────────────────────
 
-def check_referential_integrity(kb_dir: Path, edges: List[Dict], nodes_map: Dict[str, Any]) -> List[Dict]:
+def check_referential_integrity(kb_dir: Path, diagnostics: List[Dict], nodes_map: Dict[str, Any]) -> List[Dict]:
+    """Consume compiler diagnostics for orphan wiki-links.
+    Uses node.page_path to verify file existence — does NOT guess filesystem layout from node ID."""
     findings = []
-    for edge in edges:
-        target = edge.get("to", edge.get("target", ""))
-        source = edge.get("from", edge.get("source", ""))
-        edge_type = edge.get("type", "")
-
-        # Check if target page exists
-        target_path = resolve_node_path(kb_dir, target)
-        if target_path and target_path.exists():
+    for diag in diagnostics:
+        if diag.get("type") != "orphan_wikilink":
             continue
+        target = diag.get("target", "")
+        source = diag.get("source", "")
+        edge_type = diag.get("edge_type", "related_to")
 
+        # Verify against actual file via page_path
+        target_node = nodes_map.get(target)
+        if target_node:
+            page_path = target_node.get("page_path", "")
+            if page_path:
+                actual_path = resolve_page_path(kb_dir, page_path)
+                if actual_path and actual_path.exists():
+                    continue  # false positive — page exists at node's declared path
+
+        section = diag.get("section", "")
         # Classify severity
-        severity = "ERROR" if is_required_reference(edge_type, source, nodes_map) else "REVIEW"
+        severity = "ERROR" if is_required_reference(edge_type, source, nodes_map, section) else "REVIEW"
 
         finding = {
             "check": "referential-integrity",
@@ -251,58 +216,22 @@ def check_referential_integrity(kb_dir: Path, edges: List[Dict], nodes_map: Dict
     return findings
 
 
-def resolve_node_path(kb_dir: Path, node_id: str) -> Optional[Path]:
-    """Try to resolve a node ID to a file path."""
-    # Try domain-based paths
-    parts = node_id.split("-", 1)
-
-    # Direct file path (e.g. changes/active/2026-08-07-vnext-substrate)
-    direct = kb_dir / f"{node_id}.md"
-    if direct.exists():
-        return direct
-
-    # Domain-based paths
-    for domain_dir in (kb_dir / "domains").iterdir() if (kb_dir / "domains").exists() else []:
-        if not domain_dir.is_dir():
-            continue
-        for subdir in ["capabilities", "flows", "concepts", "models", "risks", "decisions"]:
-            candidate = domain_dir / subdir / f"{node_id}.md"
-            if candidate.exists():
-                return candidate
-        # Domain hub itself
-        domain_name = domain_dir.name
-        if node_id == domain_name:
-            hub = domain_dir / f"{domain_name}.md"
-            if hub.exists():
-                return hub
-
-    # Project hub
-    hub = kb_dir / f"{node_id}.md"
-    if hub.exists():
-        return hub
-
-    # Changes directory
-    if "changes/" in node_id:
-        candidate = kb_dir / f"{node_id}.md"
-        if candidate.exists():
-            return candidate
-
-    return None
-
-
-def is_required_reference(edge_type: str, source: str, nodes_map: Dict) -> bool:
+def is_required_reference(edge_type: str, source: str, nodes_map: Dict, section: str = "") -> bool:
     """Determine if a reference is required (missing = ERROR) vs optional (missing = REVIEW)."""
-    # Active Changes section → required
-    if edge_type in ("references",) and source.endswith("kodebrain"):
-        # Check if the edge came from Active Changes section
+    # References from Active Changes section → required
+    if section and "active change" in section.lower():
         return True
 
     # Domain dependency → required
     if edge_type == "depends_on":
         return True
 
-    # Risk reference from a domain → required
-    if edge_type == "has_caveat":
+    # Risk reference → required
+    if edge_type == "has_caveat" or edge_type == "risky_for":
+        return True
+
+    # References from project hub required sections
+    if edge_type in ("references",) and source.endswith("kodebrain"):
         return True
 
     return False
@@ -670,6 +599,55 @@ def check_report_consistency(kb_dir: Path, all_findings: List[Dict]) -> List[Dic
     return findings
 
 
+# ── Report Rendering ──────────────────────────────────────────────────
+
+def render_reports(result: Dict, kb_dir: Path) -> Dict[str, str]:
+    """Generate report markdown files from validation findings.
+    Pure projection — reports are derived from validation state, never authored independently."""
+    findings = result.get("findings", [])
+    reports: Dict[str, str] = {}
+
+    # drift.md
+    drift_items = [f for f in findings if f["severity"] == "DRIFT"]
+    if drift_items:
+        lines = ["# Drift Report", "", f"**{len(drift_items)} drift item(s) detected.**", ""]
+        for item in drift_items:
+            lines.append(f"- **{item['id']}** [{item['check']}/{item.get('rule', '')}] {item.get('node', '')}: {item['description']}")
+        lines.append("")
+        reports["drift.md"] = "\n".join(lines)
+    else:
+        reports["drift.md"] = "# Drift Report\n\nNo drift detected.\n"
+
+    # needs-review.md
+    review_items = [f for f in findings if f["severity"] == "REVIEW"]
+    if review_items:
+        lines = ["# Needs Review", "", f"**{len(review_items)} item(s) need review.**", ""]
+        for item in review_items:
+            lines.append(f"- **{item['id']}** [{item['check']}/{item.get('rule', '')}] {item.get('node', '')}: {item['description']}")
+        lines.append("")
+        reports["needs-review.md"] = "\n".join(lines)
+    else:
+        reports["needs-review.md"] = "# Needs Review\n\nNo items need review at this time.\n"
+
+    # knowledge-gaps.md
+    gap_findings = [
+        f for f in findings
+        if f.get("rule", "").endswith("-missing")
+        or f["check"] == "required-artifact-integrity"
+        or any(word in f.get("description", "").lower() for word in ["unknown", "missing", "gap"])
+    ]
+    if gap_findings:
+        lines = ["# Knowledge Gaps", "", f"**{len(gap_findings)} gap(s) detected.**", ""]
+        for item in gap_findings:
+            lines.append(f"- **{item['id']}** [{item['check']}/{item.get('rule', '')}] {item.get('node', '')}: {item['description']}")
+        lines.append("")
+        reports["knowledge-gaps.md"] = "\n".join(lines)
+    else:
+        reports["knowledge-gaps.md"] = "# Knowledge Gaps\n\nNo knowledge gaps detected.\n"
+
+    return reports
+
+
 # ── Main ──────────────────────────────────────────────────────────────
 
 def compute_completion_state(findings: List[Dict]) -> str:
@@ -692,29 +670,39 @@ def run_validation(kb_dir: Path, project_root: Path) -> Dict:
     # Load graph
     nodes = load_json(graph_dir / "nodes.json") if (graph_dir / "nodes.json").exists() else []
     edges = load_json(graph_dir / "edges.json") if (graph_dir / "edges.json").exists() else []
+    diagnostics = load_json(graph_dir / "diagnostics.json") if (graph_dir / "diagnostics.json").exists() else []
 
     nodes_map = {n.get("id", ""): n for n in nodes}
 
-    # Run checks
+    # Run checks — each returns (findings, checks_performed)
     all_findings: List[Dict] = []
+    check_counts: Dict[str, int] = {}
 
-    ref_findings = check_referential_integrity(kb_dir, edges, nodes_map)
+    ref_findings = check_referential_integrity(kb_dir, diagnostics, nodes_map)
     all_findings.extend(ref_findings)
+    check_counts["referential-integrity"] = len(diagnostics)
 
     art_findings = check_required_artifacts(kb_dir, nodes)
     all_findings.extend(art_findings)
+    # Count actual checks: project hub + domain hubs + graph files
+    domain_count = len(list((kb_dir / "domains").iterdir())) if (kb_dir / "domains").exists() else 0
+    check_counts["required-artifact-integrity"] = 1 + domain_count + 4  # hub + domains + 4 graph files
 
     prv_findings = check_provenance_consistency(kb_dir, nodes)
     all_findings.extend(prv_findings)
+    check_counts["provenance-consistency"] = len(nodes)
 
     int_findings = check_intent_observed_consistency(kb_dir, nodes)
     all_findings.extend(int_findings)
+    check_counts["intent-observed-consistency"] = len([n for n in nodes if n.get("page_path")])
 
     can_findings = check_canonical_authority(kb_dir, nodes, project_root)
     all_findings.extend(can_findings)
+    check_counts["canonical-authority"] = len([n for n in nodes if n.get("page_path")])
 
     rpt_findings = check_report_consistency(kb_dir, all_findings)
     all_findings.extend(rpt_findings)
+    check_counts["report-consistency"] = 5  # fixed known reports
 
     # Assign sequential IDs
     for i, f in enumerate(all_findings):
@@ -727,34 +715,21 @@ def run_validation(kb_dir: Path, project_root: Path) -> Dict:
     review_count = len([f for f in all_findings if f["severity"] == "REVIEW"])
     completion_state = compute_completion_state(all_findings)
 
-    # Build checks_run
+    # Build checks_run with actual counts
     checks_run = {}
     for check_name in ["referential-integrity", "required-artifact-integrity",
                         "provenance-consistency", "intent-observed-consistency",
                         "canonical-authority", "report-consistency"]:
         check_findings = [f for f in all_findings if f["check"] == check_name]
-        total = 0
-        if check_name == "referential-integrity":
-            total = len(edges)
-        elif check_name == "required-artifact-integrity":
-            total = 10  # approximate
-        elif check_name == "provenance-consistency":
-            total = len(nodes)
-        elif check_name == "intent-observed-consistency":
-            total = len(nodes)
-        elif check_name == "canonical-authority":
-            total = len(nodes)
-        elif check_name == "report-consistency":
-            total = 5
+        total = check_counts.get(check_name, 0)
         checks_run[check_name] = {
             "total": total,
             "passed": total - len(check_findings),
             "failed": len(check_findings),
         }
 
-    return {
-        "kb_path": str(kb_dir),
-        "validated_at": datetime.now(timezone.utc).isoformat(),
+    # Deterministic result (same KB → same result)
+    deterministic = {
         "completion_state": completion_state,
         "summary": {
             "total_findings": len(all_findings),
@@ -766,12 +741,25 @@ def run_validation(kb_dir: Path, project_root: Path) -> Dict:
         "checks_run": checks_run,
     }
 
+    # Non-deterministic metadata (separate from deterministic result)
+    try:
+        rel_path = str(kb_dir.relative_to(project_root))
+    except ValueError:
+        rel_path = str(kb_dir)
+    run_metadata = {
+        "kb_path": rel_path,
+        "validated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    return {**deterministic, **run_metadata}
+
 
 def main():
     parser = argparse.ArgumentParser(description="Kode Brain Onboard Validation Gate")
     parser.add_argument("kb_dir", help="Path to KB directory (e.g. docs/brain/projects/kodebrain/)")
     parser.add_argument("--project-root", default=".", help="Project root for resolving canonical sources")
     parser.add_argument("--output", "-o", help="Output path for validation-result.json (default: kb_dir/graph/validation-result.json)")
+    parser.add_argument("--render", action="store_true", help="Render reports from validation findings")
     args = parser.parse_args()
 
     kb_dir = Path(args.kb_dir).resolve()
@@ -788,6 +776,15 @@ def main():
 
     with open(output_path, "w") as f:
         json.dump(result, f, indent=2)
+
+    # Render reports if requested
+    if args.render:
+        reports = render_reports(result, kb_dir)
+        reports_dir = kb_dir / "reports"
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        for filename, content in reports.items():
+            (reports_dir / filename).write_text(content, encoding="utf-8")
+        print(f"Reports written to: {reports_dir}")
 
     cs = result["completion_state"]
     s = result["summary"]

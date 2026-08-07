@@ -282,6 +282,11 @@ def compile_graph(kb_dir: Path) -> dict[str, Any]:
             elif isinstance(raw_sym, str) and raw_sym:
                 node["source_symbols"] = [s.strip() for s in raw_sym.split(",") if s.strip()]
 
+        # canonical_source — nested map, preserved from frontmatter via shared parser
+        canonical_source_raw = fm.get("canonical_source", None)
+        if canonical_source_raw and isinstance(canonical_source_raw, dict):
+            node["canonical_source"] = canonical_source_raw
+
         # Extract summary from first non-heading paragraph after frontmatter
         if not fm.get("summary"):
             body_clean = body.strip()
@@ -347,6 +352,18 @@ def compile_graph(kb_dir: Path) -> dict[str, Any]:
             edge["confidence"] = "inferred"
 
     # Remove edges with orphan targets and warn
+    # Record diagnostics before dropping — validation gate consumes these
+    diagnostics: list[dict] = []
+    for edge in edges:
+        if edge["to"] not in node_type_map:
+            diagnostics.append({
+                "type": "orphan_wikilink",
+                "source": edge["from"],
+                "target": edge["to"],
+                "section": edge.get("section", ""),
+                "edge_type": edge.get("type", "related_to"),
+            })
+
     edges = [e for e in edges if e["to"] in node_type_map]
 
     if orphan_targets:
@@ -378,6 +395,7 @@ def compile_graph(kb_dir: Path) -> dict[str, Any]:
         "file_index": file_index,
         "stats": stats,
         "warnings": warnings,
+        "diagnostics": diagnostics,
     }
 
 
@@ -434,6 +452,9 @@ def main() -> None:
     )
     (out_dir / "file-index.json").write_text(
         json.dumps(result["file_index"], indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    (out_dir / "diagnostics.json").write_text(
+        json.dumps(result["diagnostics"], indent=2, ensure_ascii=False), encoding="utf-8"
     )
 
     s = result["stats"]

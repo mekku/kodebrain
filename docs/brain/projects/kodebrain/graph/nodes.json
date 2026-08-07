@@ -275,7 +275,11 @@
       "status/active"
     ],
     "last_updated": "2026-08-07",
-    "last_reviewed": null
+    "last_reviewed": null,
+    "canonical_source": {
+      "path": "docs/design/spec/history-model.md",
+      "anchor": "decision-lifecycle"
+    }
   },
   {
     "id": "kb-history",
@@ -468,7 +472,11 @@
       "status/active"
     ],
     "last_updated": "2026-08-07",
-    "last_reviewed": null
+    "last_reviewed": null,
+    "canonical_source": {
+      "path": "docs/design/spec/workflow-model.md",
+      "anchor": "change-lifecycle"
+    }
   },
   {
     "id": "kb-workflow-status-lifecycle-separation",
@@ -489,7 +497,11 @@
       "status/active"
     ],
     "last_updated": "2026-08-07",
-    "last_reviewed": null
+    "last_reviewed": null,
+    "canonical_source": {
+      "path": "docs/design/spec/workflow-model.md",
+      "anchor": "status-lifecycle-separation"
+    }
   },
   {
     "id": "kb-workflow-change-reconciliation-flow",
