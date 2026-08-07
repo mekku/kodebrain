@@ -37,38 +37,34 @@ The primary users are: human developers and project owners, coding agents, revie
 ```text
                          KODE BRAIN
                               │
-         ┌────────────────────┼────────────────────┐
-         │                    │                    │
-         ▼                    ▼                    ▼
-   KNOWLEDGE MODEL       WORKFLOW MODEL       MEMORY MODEL
-         │                    │                    │
-         ▼                    ▼                    ▼
-  [knowledge-model]     [workflow-model]     [history-model]
-         │                    │                    │
-    ┌────┴────┐          ┌────┴────┐          ┌────┴────┐
-    │    │    │          │    │    │          │    │    │
-    ▼    ▼    ▼          ▼    ▼    ▼          ▼    ▼    ▼
-  Layers Truth Graph  Onboard Change Agent  Decision Incident
-  Harvest Drift       Lifecycle Behavior   Change Events
-         │                                      Timeline
-         ▼
-   [project-model]
-         │
-    ┌────┴────┐
-    │    │    │
-    ▼    ▼    ▼
- Structure Arch Domains
-   Naming IDs
-
-                    [governance]
-                         │
-                    ┌────┴────┐
-                    │    │    │
-                    ▼    ▼    ▼
-                Precedence Compat Non-Goals
+                              │  (canonical spec root)
+                              │
+   ┌────────┬────────┬────────┼────────┬────────┐
+   │        │        │        │        │        │
+   ▼        ▼        ▼        ▼        ▼        ▼
+[knowledge] [project] [workflow] [history] [governance]
+   │        │        │        │        │
+   ▼        ▼        ▼        ▼        ▼
+ meaning   shape    process  temporal   rules
+  of        of       that     records   that
+knowledge project  mutate/  produced   govern
+                   use KB   by those   the KB
+                           processes
 ```
 
-Each `[bracket]` links to a canonical child specification below.
+Each `[bracket]` links to a canonical child specification. The parent relationship in the diagram matches the `parent: root` metadata in each child — one level, flat.
+
+**Boundary rules:**
+
+| Spec | Answers | Owns |
+|---|---|---|
+| Knowledge | What does knowledge *mean*? | Layers, truth model, provenance, confidence, harvest, drift, graph compilation |
+| Project | What is the *shape* of project knowledge? | Structure, layout, hub, architecture, domains, naming, IDs |
+| Workflow | What *processes* mutate or use knowledge? | Onboarding, change lifecycle, status/lifecycle separation, agent behavior |
+| History | What *temporal records* do those processes produce? | Decision records/lineage, incident records/lifecycle, milestone records, change records, events, timeline, retrieval |
+| Governance | What *rules* govern the KB itself? | Precedence, compatibility, non-goals, success criteria, spec authority |
+
+**Schema** (`schema/node.schema.json`) is the machine contract derived from all five specs — it does not define semantics independently.
 
 ---
 

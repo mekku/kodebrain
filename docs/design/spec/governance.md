@@ -40,6 +40,28 @@ When a new concept is introduced:
 
 The anti-pattern is: new idea → create another design document → implement from that document → leave the canonical spec unchanged. This is specification drift.
 
+## Spec Boundary Rules
+
+When a new question arises, route it to one canonical owner using this framework:
+
+| Question pattern | Owner | Example |
+|---|---|---|
+| What does X *mean*? | Knowledge | "What is provenance?" |
+| What is the *shape/structure* of X? | Project | "Where do domain pages live?" |
+| What *process* creates/modifies X? | Workflow | "When is a change created?" |
+| What *temporal record* does X produce? | History | "What does a completed change contain?" |
+| What *rule* constrains X? | Governance | "Can old specs be deleted?" |
+| What is the *machine form* of X? | Schema (derived) | "What fields does a node have?" |
+
+The boundary between Workflow and History:
+
+- **Workflow** owns active processes: when to create a change, what lifecycle states mean, how reconciliation works.
+- **History** owns the temporal record: what a completed change contains, how decisions lineage works, what incidents record.
+- History delegates lifecycle state definitions to Workflow (e.g., `change_state` values are defined in Workflow; History references them).
+- Neither spec independently redefines record semantics owned by the other.
+
+---
+
 ## Specification Authority
 
 Separate artifact classes with different roles:

@@ -192,16 +192,7 @@ def validate(docs_dir: Path) -> dict[str, Any]:
             "detail": f"Concern '{concern}' owned by {len(owners)} canonical specs. Exactly one required.",
         })
 
-    # ── Rule: deprecated/superseded specs identify replacement ────────────────
-    for sid, info in spec_index.items():
-        role = info["role"]
-        if role in ("historical", "superseded", "deprecated"):
-            replaced_by = info.get("parent", "") or ""  # Hmm, this isn't right
-            # Check the actual superseded_by field from frontmatter — but it's
-            # not stored in spec_index. Let me add it.
-            pass  # Fixed below
-
-    # Re-scan for superseded_by (not in spec_index since no spec_id required)
+    # ── Rule: deprecated/superseded specs identify valid replacement ──────────
     for path, fm in docs_with_role:
         role = fm.get("spec_role", "")
         if role in ("historical", "superseded", "deprecated"):
@@ -212,6 +203,38 @@ def validate(docs_dir: Path) -> dict[str, Any]:
                     "doc": path,
                     "detail": f"Spec with role '{role}' does not declare superseded_by.",
                 })
+            else:
+                # Verify target exists and is canonical
+                target_path = docs_dir / replaced_by
+                if target_path.exists():
+                    # File exists — check its role
+                    try:
+                        target_text = target_path.read_text(encoding="utf-8", errors="replace")
+                        target_fm, _ = _parse_frontmatter(target_text)
+                        target_role = target_fm.get("spec_role", "")
+                        if target_role not in _canonical_roles:
+                            warnings.append({
+                                "rule": "superseded-target-not-canonical",
+                                "doc": path,
+                                "detail": f"superseded_by target '{replaced_by}' is not canonical (role: {target_role}).",
+                            })
+                    except OSError:
+                        pass
+                else:
+                    # Try as spec_id lookup
+                    target_spec = spec_index.get(replaced_by)
+                    if not target_spec:
+                        warnings.append({
+                            "rule": "superseded-target-missing",
+                            "doc": path,
+                            "detail": f"superseded_by target '{replaced_by}' not found as file or spec_id.",
+                        })
+                    elif target_spec["role"] not in _canonical_roles:
+                        warnings.append({
+                            "rule": "superseded-target-not-canonical",
+                            "doc": path,
+                            "detail": f"superseded_by target '{replaced_by}' exists but is not canonical (role: {target_spec['role']}).",
+                        })
 
     # ── Rule: implementation plans reference canonical spec ───────────────────
     for path, fm in docs_with_role:
@@ -231,9 +254,8 @@ def validate(docs_dir: Path) -> dict[str, Any]:
                     "detail": "Implementation plan does not declare which canonical spec it implements.",
                 })
             else:
-                # Verify each referenced spec exists
+                # Verify each referenced spec exists AND is canonical
                 for ref in implements_list:
-                    # Ref is like "spec/knowledge-model.md" — check file exists
                     ref_path = docs_dir / ref
                     if not ref_path.exists():
                         warnings.append({
@@ -241,6 +263,20 @@ def validate(docs_dir: Path) -> dict[str, Any]:
                             "doc": path,
                             "detail": f"Referenced spec '{ref}' not found at expected path.",
                         })
+                        continue
+                    # Verify target is canonical
+                    try:
+                        ref_text = ref_path.read_text(encoding="utf-8", errors="replace")
+                        ref_fm, _ = _parse_frontmatter(ref_text)
+                        ref_role = ref_fm.get("spec_role", "")
+                        if ref_role not in _canonical_roles:
+                            warnings.append({
+                                "rule": "plan-reference-not-canonical",
+                                "doc": path,
+                                "detail": f"Referenced spec '{ref}' is not canonical (role: {ref_role}). Plans should reference canonical specs.",
+                            })
+                    except OSError:
+                        pass
 
     valid = len(errors) == 0
 

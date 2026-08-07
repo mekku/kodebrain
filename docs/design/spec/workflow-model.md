@@ -3,12 +3,12 @@ spec_id: workflow-model
 spec_role: canonical
 parent: root
 owns:
-  - workflow.onboarding
-  - workflow.greenfield
-  - workflow.brownfield
-  - workflow.change-lifecycle
-  - workflow.status-lifecycle
-  - workflow.agent-behavior
+  - onboarding.process
+  - greenfield.workflow
+  - brownfield.workflow
+  - change.lifecycle
+  - status-lifecycle.separation
+  - agent.behavior
 ---
 
 # Workflow Model
@@ -124,15 +124,19 @@ Regenerate timeline + events
 
 ## Status vs Lifecycle State
 
-Generic KB `status` describes knowledge quality (`active`, `stale`, `needs_review`). Lifecycle state is separate and type-specific:
+Generic KB `status` describes knowledge quality (`active`, `stale`, `needs_review`). Lifecycle state is separate and type-specific.
 
-| Record type | Lifecycle field | Values |
-|---|---|---|
-| Change | `change_state` | planned, in_progress, implemented, reconciled |
-| Incident | `incident_state` | ongoing, mitigated, resolved |
-| Decision | `decision_state` | active, superseded, deprecated |
+This spec defines the **separation principle**. Specific lifecycle values are owned by the spec that owns each record type:
+
+| Record type | Lifecycle field | Owned by | Values |
+|---|---|---|---|
+| Change | `change_state` | Workflow (this spec) | planned, in_progress, implemented, reconciled |
+| Incident | `incident_state` | [`history-model`](history-model.md) | ongoing, mitigated, resolved |
+| Decision | `decision_state` | [`history-model`](history-model.md) | active, superseded, deprecated |
 
 A completed change has `status: active` (knowledge is valid) and `change_state: reconciled` (lifecycle is complete). This separation is enforced in `schema/node.schema.json` and all templates.
+
+For incident lifecycle semantics, see [`history-model.md` §Incidents](history-model.md). For decision lineage and state transitions, see [`history-model.md` §Decision Lineage](history-model.md).
 
 ---
 

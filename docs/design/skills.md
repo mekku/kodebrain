@@ -1,6 +1,6 @@
 ---
 spec_role: historical
-superseded_by: kodebrain/skill/SKILL.md
+superseded_by: spec/workflow-model.md
 ---
 
 # Skill API Contracts

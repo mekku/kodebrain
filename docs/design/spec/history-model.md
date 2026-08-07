@@ -3,14 +3,15 @@ spec_id: history-model
 spec_role: canonical
 parent: root
 owns:
-  - history.records
-  - history.decision-lineage
-  - history.incidents
-  - history.milestones
-  - history.change-history
-  - history.events
-  - history.timeline
-  - history.retrieval
+  - decision.record
+  - decision.lineage
+  - incident.record
+  - incident.lifecycle
+  - milestone.record
+  - change.record
+  - temporal.events
+  - temporal.timeline
+  - temporal.retrieval
 ---
 
 # Project History Model
@@ -20,6 +21,8 @@ Canonical owner for: the 4th Kode Brain question (HOW DID WE GET HERE?), semanti
 ## The Fourth Question
 
 Project History is the semantic time axis — it answers **HOW DID WE GET HERE?**
+
+> **Boundary:** History owns the record schemas and temporal semantics of decisions, incidents, milestones, and completed changes. The active Change lifecycle (planned → in_progress → implemented → reconciled) is owned by [`workflow-model`](workflow-model.md). History delegates to Workflow for lifecycle state definitions and to [`project-model`](project-model.md) for project structure conventions.
 
 History records are **append-oriented**. Once recorded, they are not rewritten. If understanding changes, a new record supersedes the old one — the old record remains as evidence of the path taken.
 

@@ -2741,3 +2741,52 @@ parent: a
         result = mod.validate(docs)
         assert not result["valid"]
         assert any("parent-chain-cycle" in e["rule"] for e in result["errors"])
+
+    def test_superseded_target_not_canonical_warns(self, tmp_path: Path) -> None:
+        """superseded_by pointing to non-canonical doc must warn."""
+        mod = _load_script(_SPEC_VALIDATOR_PATH)
+        docs = self._make_docs(tmp_path, {
+            "spec.md": """---
+spec_id: root
+spec_role: canonical-root
+---
+# Root
+""",
+            "old.md": """---
+spec_role: historical
+superseded_by: design/old.md
+---
+# Old
+""",
+        })
+        result = mod.validate(docs)
+        assert any(
+            r in w["rule"] for w in result["warnings"]
+            for r in ["superseded-target-not-canonical", "superseded-target-missing"]
+        )
+
+    def test_plan_reference_not_canonical_warns(self, tmp_path: Path) -> None:
+        """Plan referencing non-canonical spec must warn."""
+        mod = _load_script(_SPEC_VALIDATOR_PATH)
+        docs = self._make_docs(tmp_path, {
+            "spec.md": """---
+spec_id: root
+spec_role: canonical-root
+---
+# Root
+""",
+            "historical.md": """---
+spec_role: historical
+---
+# Historical
+""",
+            "plan.md": """---
+spec_role: implementation-plan
+implements:
+  - design/historical.md
+---
+# Plan
+""",
+        })
+        result = mod.validate(docs)
+        assert any("plan-reference-not-canonical" in w["rule"] for w in result["warnings"])
