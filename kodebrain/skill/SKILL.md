@@ -274,31 +274,71 @@ invariants, legacy_migration
 
 Each gap marked: `found_in_docs` / `inferred_from_project` / `needs_human` / `unknown`.
 
-**2. Discover existing intent.** Before inferring project purpose from code, search for intent in:
-1. current Project Contract / existing KB pages,
-2. human notes,
-3. ADRs,
-4. README and architecture docs,
-5. other likely product/spec docs.
+**2. Run Intent Source Inventory (deterministic).** Scan for project intent documents BEFORE harvesting source code. This is a script, not an LLM step:
 
-Distinguish current/active documentation from historical/stale documentation when possible.
+```bash
+python3 <skill_base_dir>/scripts/intent_inventory.py <root> --kb-dir docs/brain/projects/<name>/
+```
 
-**3. Interview if necessary.** If project-level intent is absent, materially incomplete, ambiguous, or contradictory, interview the user before deep mapping.
+This writes `graph/intent-sources.json`. The script discovers specs, ADRs, architecture docs, PRDs, READMEs, and other intent-bearing files using deterministic glob patterns. Each source is classified with:
+- `kind` — specification, adr, architecture_doc, prd, readme, convention, design_doc
+- `status` — draft, current, historical, unknown (extracted from frontmatter or explicit status line)
+- `requires_confirmation` — true when status is draft or unknown
+- `authority` — high, medium, low
 
-Do not interview merely because a particular file is missing. Interview only for knowledge that materially improves project interpretation.
+Example output:
 
-Minimum interview dimensions:
-- Purpose and users — what the project is and who it serves.
-- Core outcomes/workflows — the few things the system fundamentally must accomplish.
-- Known system shape — apps, services, workers, major components.
-- Critical external systems — important third-party dependencies.
-- Known legacy/migration areas.
+```json
+{
+  "discovered": 3,
+  "confirmed": 1,
+  "draft_or_unknown": 2,
+  "pending_confirmation": true,
+  "sources": [
+    {
+      "path": "docs/specs/ai-interview-builder.md",
+      "kind": "specification",
+      "status": "draft",
+      "requires_confirmation": true
+    }
+  ]
+}
+```
 
-For greenfield, additionally establish: technology constraints, deployment constraints, security/privacy constraints, initial domains, non-functional requirements.
+**3. Adaptive interview — intent gate.** Read `graph/intent-sources.json`. For each source where `requires_confirmation: true`, ask the human exactly one question:
 
-Interview output gets `provenance: human`, `knowledge_role: intent`.
+> **`<title>`** (`<path>`, `<kind>`, status: `<status>`)
+> Is this still the current specification the system should follow?
+>
+> [1] Yes — treat as authoritative intent (provenance: project_document, knowledge_role: intent)
+> [2] Partially — some sections superseded (let me note which)
+> [3] No — mark historical / superseded
+> [4] Skip — decide later
 
-**4. Create or repair the Project Contract.** Generate `<project>.md` with all required sections. Only populate sections supported by current knowledge. Keep unknowns explicit.
+Only draft or unknown documents get interviewed. Confirmed documents are accepted without interview. If no documents require confirmation, skip this step entirely.
+
+**Onboard gate:** If `pending_confirmation: true` and the human has not yet answered, onboard may NOT declare completion. Unconfirmed intent documents mean the Project Contract may be missing authoritative intent — silent source-as-truth is not acceptable.
+
+Interview output gets `provenance: human`, `knowledge_role: intent`. Mark confirmed intent sources in the Project Contract's `intent_sources` list.
+
+**4. Create or repair the Project Contract (intent-aware).** Generate `<project>.md` with all required sections. Only populate sections supported by current knowledge. Keep unknowns explicit.
+
+When confirmed intent sources exist, Project Contract pages carry:
+
+```yaml
+provenance: project_document   # NOT source_code
+knowledge_role: intent          # NOT mixed
+intent_sources:
+  - docs/specs/ai-interview-builder.md
+observed_sources:
+  - package.json
+  - src/**
+```
+
+Sections inherit semantic role:
+- `Purpose`, `Scope`, `Core Outcomes` → **intended** (from confirmed specs/ADRs)
+- `Technology`, `Current Architecture`, `Source Areas` → **observed** (from source)
+- `Drift` → **comparison** (generated when intent and source disagree)
 
 Also generate architecture pages for which evidence exists:
 - `architecture/overview.md`
@@ -343,8 +383,10 @@ python3 <skill_base_dir>/scripts/validate.py <kb_dir> --project-root <root>
 ```
 Reports are always rendered during validation. The `--render` flag is accepted for backward compatibility but is no longer required.
 
-**10. Check completion state.** Read `graph/validation-result.json`:
+**10. Check completion state.** Read `graph/validation-result.json` AND `graph/intent-sources.json`:
+
 - `completion_state: blocked` → print ERROR findings, tell user to resolve, STOP. Do NOT declare onboard complete.
+- `pending_confirmation: true` (from intent-sources.json) → print "⚠ Pending intent confirmation — run adaptive interview (Step 3) before declaring complete." Do NOT declare complete.
 - `completion_state: complete_with_drift` → print summary, note drift items
 - `completion_state: needs_review` → print summary, note review items
 - `completion_state: complete` → print summary
@@ -364,7 +406,7 @@ kodebrain project install <root> 2>/dev/null \
   || echo "Tip: pip install kodebrain && kodebrain project install . to set up platform configs."
 ```
 
-**14. Print summary.** Use `validation-result.json` for completion state, drift, review, and gap counts:
+**14. Print summary.** Use `validation-result.json` and `intent-sources.json` for completion state, drift, review, and gap counts:
 ```
 Kode Brain onboard complete — <project name>
 State:            <completion_state>  (from validation-result.json)
@@ -379,8 +421,10 @@ Drift items:      N  (from validation-result.json)
 Review items:     N  (from validation-result.json)
 Knowledge gaps:   N  (from validation-result.json)
 
-KB location:      docs/brain/projects/<name>/
-Graph view:       Open docs/brain/ as an Obsidian vault → Graph view
+Intent Coverage
+  Discovered:     N  (from intent-sources.json)
+  Confirmed:      N
+  Pending:        N  (requires confirmation)
 ```
 
 ---
@@ -631,6 +675,7 @@ Answer from KB pages. Read source files directly when: KB reports `confidence: s
 **Never:**
 - Delete any KB page or source file
 - Set `confidence: verified` (human only)
+- Create a Decision record from source code alone — Decision answers WHY, source proves WHAT. Requires human, ADR, spec, design doc, or commit/PR rationale.
 - Mark a migration `completed`
 - Overwrite text inside `<!-- human-note --> ... <!-- /human-note -->` blocks — preserve verbatim
 - Claim behavior without source evidence — use `inferred` instead
@@ -681,9 +726,17 @@ Answer from KB pages. Read source files directly when: KB reports `confidence: s
 Generated: <date>
 
 ## Coverage
+
+### Implementation Coverage
 Total source files:   N
 Mapped to KB:         N  (NN%)
 Unmapped:             N  (NN%)
+
+### Intent Coverage
+Intent sources discovered:   N
+Confirmed / consumed:        N  (NN%)
+Draft / pending:             N
+Historical:                  N
 
 ## Knowledge Map
 | Type         | Count |

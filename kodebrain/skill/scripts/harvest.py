@@ -651,11 +651,13 @@ def run_benchmark(kb_project_dir: Path, source_root: Path | None = None) -> dict
         + conf_counts.get('ambiguous', 0) * 10
     ) / n_total if n_total else 0
 
-    coverage_score = coverage_pct
+    implementation_score = coverage_pct
     connectedness_score = 100 - (len(orphan_nodes) / n_total * 100) if n_total else 0
     risk_score = min(100, sum(_SEVERITY_WEIGHT.get(_parse_risk_severity(n), 20) for n in risk_nodes)
                        + len(legacy_nodes) * 10)
-    overall_score = (coverage_score + confidence_score + connectedness_score + risk_score) / 4
+    intent_score = intent_coverage['coverage_pct'] if intent_coverage else 0
+    overall_score = (implementation_score + confidence_score + connectedness_score
+                     + risk_score + intent_score) / 5
 
     def _grade(score: float) -> str:
         if score >= 90: return 'Excellent'
@@ -673,6 +675,32 @@ def run_benchmark(kb_project_dir: Path, source_root: Path | None = None) -> dict
     drift_path = reports_dir / 'drift.md'
     drift_items = _count_headings(drift_path) if drift_path.exists() else 0
 
+    # ── Intent coverage ───────────────────────────────────────────────────────
+    intent_sources_path = graph_dir / 'intent-sources.json'
+    intent_coverage: dict | None = None
+    if intent_sources_path.exists():
+        intent_data = json.loads(intent_sources_path.read_text())
+        discovered = intent_data.get('discovered', 0)
+        confirmed = intent_data.get('confirmed', 0)
+        intent_coverage = {
+            'discovered': discovered,
+            'confirmed': confirmed,
+            'draft_or_unknown': intent_data.get('draft_or_unknown', 0),
+            'historical': intent_data.get('historical', 0),
+            'pending_confirmation': intent_data.get('pending_confirmation', discovered > confirmed),
+            'coverage_pct': round(confirmed / max(discovered, 1) * 100, 1),
+        }
+    else:
+        intent_coverage = {
+            'discovered': 0,
+            'confirmed': 0,
+            'draft_or_unknown': 0,
+            'historical': 0,
+            'pending_confirmation': False,
+            'coverage_pct': 0.0,
+            'note': 'intent-sources.json not found — run intent_inventory.py first',
+        }
+
     # ── Token efficiency ──────────────────────────────────────────────────────
     kb_md_bytes = sum(p.stat().st_size for p in kb_project_dir.rglob('*.md'))
     kb_json_bytes = sum(p.stat().st_size for p in graph_dir.glob('*.json'))
@@ -689,11 +717,12 @@ def run_benchmark(kb_project_dir: Path, source_root: Path | None = None) -> dict
     # ── Assemble result ───────────────────────────────────────────────────────
     result = {
         'coverage': {
+            'implementation_pct': round(coverage_pct, 1),
             'total_source_files': total_source_files,
             'mapped_files': mapped_files,
             'unmapped_files': unmapped_files,
-            'coverage_pct': round(coverage_pct, 1),
         },
+        'intent_coverage': intent_coverage,
         'nodes': {
             'total': n_total,
             'by_type': dict(type_counts),
@@ -722,7 +751,8 @@ def run_benchmark(kb_project_dir: Path, source_root: Path | None = None) -> dict
             'drift_items': drift_items,
         },
         'scores': {
-            'coverage': round(coverage_score),
+            'implementation_coverage': round(implementation_score),
+            'intent_coverage': round(intent_score),
             'confidence': round(confidence_score),
             'connectedness': round(connectedness_score),
             'risk_awareness': round(risk_score),

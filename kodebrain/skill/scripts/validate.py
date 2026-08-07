@@ -380,6 +380,26 @@ def check_provenance_consistency(kb_dir: Path, nodes: List[Dict]) -> List[Dict]:
                 "description": "Node has provenance=source_code + confidence=verified. 'verified' is human-only.",
             })
 
+        # Rule: type=decision + provenance=source_code is invalid
+        # Decision answers WHY; source code can only prove WHAT.
+        node_type = node.get("type", "")
+        if node_type == "decision" and provenance == "source_code":
+            findings.append({
+                "id": f"ERR-PRV-{len(findings)+1:03d}",
+                "check": "provenance-consistency",
+                "severity": "ERROR",
+                "rule": "invalid-decision-provenance",
+                "node": node_id,
+                "description": (
+                    "Decision node provenance=source_code is invalid. "
+                    "Source code alone cannot answer WHY a choice was made — "
+                    "only WHAT exists. Decision requires at least one of: "
+                    "human, project_document (ADR/spec/design doc), git (commit/PR rationale). "
+                    "Downgrade to Observed Architecture (type=concept, knowledge_role=observed) "
+                    "or add supporting evidence."
+                ),
+            })
+
         # Rule: provenance=generated + confidence=supported or verified is invalid
         if provenance == "generated" and confidence in ("supported", "verified"):
             findings.append({
