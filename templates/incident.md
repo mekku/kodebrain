@@ -1,8 +1,9 @@
 ---
 id: {{domain-slug}}-{{YYYY-MM-DD}}-{{incident-slug}}
 type: incident
+status: active
+incident_state: {{incident_state}}
 severity: {{severity}}
-status: {{status}}
 started_at: "{{YYYY-MM-DD}}"
 resolved_at: {{YYYY-MM-DD or null}}
 domain: {{domain-slug}}
@@ -15,12 +16,13 @@ tags:
   - type/incident
   - domain/{{domain-slug}}
   - severity/{{severity}}
+  - incident_state/{{incident_state}}
 ---
 
 # Incident: {{Short Incident Title}}
 
 **Severity:** critical / high / medium / low
-**Status:** resolved | mitigated | ongoing
+**State:** ongoing | mitigated | resolved
 **Started:** {{YYYY-MM-DD}}
 **Resolved:** {{YYYY-MM-DD or "ongoing"}}
 

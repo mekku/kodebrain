@@ -35,35 +35,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-# ── Frontmatter parsing ───────────────────────────────────────────────────────
-
-_FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
+from frontmatter import parse as _parse_frontmatter
 
 _WIKILINK_RE = re.compile(r"\[\[([^\]|#]+?)(?:\|[^\]]+?)?\]\]")
 
 _HISTORY_TYPES = {"decision", "change", "incident", "milestone"}
 
 
-def _parse_frontmatter(text: str) -> dict[str, Any]:
-    m = _FRONTMATTER_RE.match(text)
-    if not m:
-        return {}
-    fm: dict[str, Any] = {}
-    for line in m.group(1).splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        if ":" in line:
-            key, _, value = line.partition(":")
-            key = key.strip()
-            value = value.strip().strip('"').strip("'")
-            fm[key] = value
-    return fm
-
-
 def _parse_title(text: str) -> str:
-    m = _FRONTMATTER_RE.match(text)
-    body = text[m.end():] if m else text
+    _, body = _parse_frontmatter(text)
     for line in body.splitlines():
         stripped = line.strip()
         if stripped.startswith("# "):
@@ -112,7 +92,7 @@ def _collect_records(kb_dir: Path) -> list[dict[str, Any]]:
         except OSError:
             continue
 
-        fm = _parse_frontmatter(text)
+        fm, body_text = _parse_frontmatter(text)
         record_type = fm.get("type", "")
 
         if record_type not in _HISTORY_TYPES:
@@ -174,16 +154,20 @@ def _collect_records(kb_dir: Path) -> list[dict[str, Any]]:
             subtype = fm.get("significance", "")
 
         # Linked nodes from wiki-links in body
-        body = text[_FRONTMATTER_RE.match(text).end():] if _FRONTMATTER_RE.match(text) else ""
-        linked_nodes = _extract_wikilinks(body)
+        linked_nodes = _extract_wikilinks(body_text)
 
-        # Supersedes (for lineage derivation)
-        supersedes_raw = fm.get("supersedes", "")
+        # Supersedes (for lineage derivation) — shared parser handles multi-line YAML
+        supersedes_raw = fm.get("supersedes", [])
         supersedes: list[str] = []
-        if isinstance(supersedes_raw, str) and supersedes_raw:
-            supersedes = [s.strip() for s in supersedes_raw.split(",") if s.strip()]
-        elif isinstance(supersedes_raw, list):
+        if isinstance(supersedes_raw, list):
             supersedes = supersedes_raw
+        elif isinstance(supersedes_raw, str) and supersedes_raw:
+            supersedes = [s.strip() for s in supersedes_raw.split(",") if s.strip()]
+
+        # Progress log entries (change records)
+        progress_entries: list[dict] = []
+        if record_type == "change":
+            progress_entries = _parse_progress_entries(body_text)
 
         records.append({
             "date": date_str,
@@ -195,6 +179,7 @@ def _collect_records(kb_dir: Path) -> list[dict[str, Any]]:
             "path": str(md.relative_to(kb_dir)),
             "supersedes": supersedes,
             "linked_nodes": linked_nodes,
+            "progress_entries": progress_entries,
         })
 
     # Sort by date, descending
@@ -232,27 +217,85 @@ def _derive_lineage(records: list[dict]) -> list[dict]:
     return enriched
 
 
+# ── Progress log parsing ──────────────────────────────────────────────────────
+
+_PROGRESS_ENTRY_RE = re.compile(
+    r"###\s+(\d{4}-\d{2}-\d{2})\s*\n(.*?)(?=\n###\s+\d{4}|\n##\s|\Z)",
+    re.DOTALL,
+)
+
+
+def _parse_progress_entries(body: str) -> list[dict]:
+    """Extract dated progress entries from a Progress Log section."""
+    # Find the Progress Log section
+    progress_match = re.search(r"##\s+Progress\s+Log\s*\n(.*?)(?=\n##\s|\Z)", body, re.DOTALL)
+    if not progress_match:
+        return []
+
+    section = progress_match.group(1)
+    entries: list[dict] = []
+    for m in _PROGRESS_ENTRY_RE.finditer(section):
+        date = m.group(1).strip()
+        text = m.group(2).strip()
+        if text:
+            entries.append({"date": date, "summary": text})
+    return entries
+
+
 # ── Event generation ──────────────────────────────────────────────────────────
 
 def _generate_events(records: list[dict]) -> list[dict]:
     """
-    Generate a temporal event for each record.
+    Generate temporal events from enriched records.
 
-    One record = one primary event (for now). Future: multi-event records
-    (change progress entries, milestone sub-events, etc.)
+    Each record produces at least one primary event. Change records with
+    Progress Log sections produce additional progress events.
     """
     events: list[dict] = []
+
     for r in records:
-        events.append({
+        rec_type = r["type"]
+
+        # Primary event
+        primary = {
             "date": r["date"],
-            "type": r["type"],
+            "kind": f"{rec_type}.{r.get('state', 'unknown')}",
             "id": r["id"],
             "title": r["title"],
             "state": r.get("state", ""),
             "subtype": r.get("subtype", ""),
             "linked_nodes": r.get("linked_nodes", []),
             "path": r.get("path", ""),
-        })
+        }
+        events.append(primary)
+
+        # Progress events from change records
+        progress = r.get("progress_entries", [])
+        for pe in progress:
+            events.append({
+                "date": pe["date"],
+                "kind": "change.progress",
+                "id": r["id"],
+                "title": pe["summary"],
+                "state": "in_progress",
+                "subtype": "",
+                "linked_nodes": r.get("linked_nodes", []),
+                "path": r.get("path", ""),
+            })
+
+        # Derived lineage events for superseded decisions
+        if rec_type == "decision" and r.get("superseded_by"):
+            events.append({
+                "date": r["date"],
+                "kind": "decision.superseded",
+                "id": r["id"],
+                "title": f"Superseded by: {', '.join(r['superseded_by'])}",
+                "state": "superseded",
+                "subtype": "",
+                "linked_nodes": r.get("linked_nodes", []),
+                "path": r.get("path", ""),
+            })
+
     events.sort(key=lambda e: e["date"], reverse=True)
     return events
 
@@ -332,8 +375,9 @@ def generate_timeline(kb_dir: Path) -> str:
 
 
 def generate_events(kb_dir: Path) -> list[dict]:
-    """Generate history/events.json from all history records."""
-    records = _collect_records(kb_dir)
+    """Generate history/events.json from all history records with enriched lineage."""
+    raw_records = _collect_records(kb_dir)
+    records = _derive_lineage(raw_records)
     return _generate_events(records)
 
 

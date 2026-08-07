@@ -28,6 +28,10 @@ _MIGRATE_KB_PATH = _SCRIPTS_DIR / "migrate_kb.py"
 
 def _load_script(path: Path):
     """Load a standalone script by file path via importlib."""
+    # Ensure the scripts directory is on sys.path for cross-module imports
+    scripts_dir = str(path.parent)
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
     name = path.stem
     spec = importlib.util.spec_from_file_location(name, str(path))
     assert spec is not None, f"cannot find spec for {path}"
@@ -2064,7 +2068,8 @@ supersedes:
         (changes_dir / "2026-07-20-migrate-sessions.md").write_text("""---
 id: 2026-07-20-migrate-sessions
 type: change
-status: reconciled
+status: active
+change_state: reconciled
 outcome: success
 started_at: "2026-07-15"
 completed_at: "2026-07-20"
@@ -2079,8 +2084,9 @@ completed_at: "2026-07-20"
         (inc_dir / "2026-06-10-duplicate-capture.md").write_text("""---
 id: payment-2026-06-10-duplicate-capture
 type: incident
+status: active
+incident_state: resolved
 severity: high
-status: resolved
 started_at: "2026-06-10"
 resolved_at: "2026-06-11"
 domain: payment
@@ -2159,8 +2165,9 @@ class TestCompileGraphWithHistory:
             ("incidents/payment-duplicate.md", """---
 id: payment-duplicate
 type: incident
+status: active
+incident_state: resolved
 severity: high
-status: resolved
 domain: payment
 project: test
 confidence: verified
@@ -2250,3 +2257,241 @@ tags:
         types = {n["type"] for n in result["nodes"]}
         assert "milestone" in types
         assert "decision" in types
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Lineage + progress events + schema compliance
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestDecisionLineage:
+    """Multi-line YAML supersedes → derive superseded_by by compiler."""
+
+    def _make_kb(self, tmp_path: Path) -> Path:
+        kb_dir = tmp_path / "docs" / "brain" / "projects" / "test"
+        kb_dir.mkdir(parents=True)
+
+        # Old decision (no supersedes, just exists)
+        dec_dir = kb_dir / "decisions"
+        dec_dir.mkdir(parents=True)
+        (dec_dir / "2026-01-use-redis.md").write_text("""---
+id: infra-2026-01-use-redis
+type: decision
+status: active
+decision_state: active
+date: "2026-01-15"
+project: test
+domain: infra
+source_files: []
+supersedes: []
+last_updated: "2026-01-15"
+tags:
+  - type/decision
+  - domain/infra
+---
+
+# Decision: Use Redis
+
+## Decision
+
+Use Redis for caching.
+""")
+
+        # New decision that supersedes it (multi-line YAML list)
+        (dec_dir / "2026-08-use-valkey.md").write_text("""---
+id: infra-2026-08-use-valkey
+type: decision
+status: active
+decision_state: active
+date: "2026-08-01"
+project: test
+domain: infra
+source_files: []
+supersedes:
+  - infra-2026-01-use-redis
+last_updated: "2026-08-01"
+tags:
+  - type/decision
+  - domain/infra
+---
+
+# Decision: Migrate to Valkey
+
+## Decision
+
+Migrate from Redis to Valkey.
+
+## Why Previous Decision Changed
+
+Redis licensing changed. Valkey is the compatible replacement.
+""")
+        return kb_dir
+
+    def test_supersedes_parsed_as_list(self, tmp_path: Path) -> None:
+        """Multi-line YAML supersedes list must parse correctly."""
+        mod = _load_script(_TIMELINE_PATH)
+        kb = self._make_kb(tmp_path)
+        records = mod._collect_records(kb)
+
+        new_dec = [r for r in records if r["id"] == "infra-2026-08-use-valkey"][0]
+        assert isinstance(new_dec["supersedes"], list)
+        assert "infra-2026-01-use-redis" in new_dec["supersedes"]
+
+    def test_lineage_derives_superseded_by(self, tmp_path: Path) -> None:
+        """Compiler derives superseded_by on old decision from new decision's supersedes."""
+        mod = _load_script(_TIMELINE_PATH)
+        kb = self._make_kb(tmp_path)
+        raw = mod._collect_records(kb)
+        enriched = mod._derive_lineage(raw)
+
+        old_dec = [r for r in enriched if r["id"] == "infra-2026-01-use-redis"][0]
+        assert old_dec["superseded_by"] == ["infra-2026-08-use-valkey"]
+        assert old_dec["state"] == "superseded"
+
+    def test_lineage_in_timeline_output(self, tmp_path: Path) -> None:
+        """Generated timeline must show lineage for both decisions."""
+        mod = _load_script(_TIMELINE_PATH)
+        kb = self._make_kb(tmp_path)
+        timeline = mod.generate_timeline(kb)
+        assert "Superseded by" in timeline
+        assert "Supersedes" in timeline
+
+    def test_events_use_enriched_lineage(self, tmp_path: Path) -> None:
+        """events.json must include decision.superseded events from lineage derivation."""
+        mod = _load_script(_TIMELINE_PATH)
+        kb = self._make_kb(tmp_path)
+        events = mod.generate_events(kb)
+
+        kinds = {e["kind"] for e in events}
+        assert "decision.superseded" in kinds
+
+
+class TestProgressEvents:
+    """Progress Log entries in change records → multiple temporal events."""
+
+    def _make_kb(self, tmp_path: Path) -> Path:
+        kb_dir = tmp_path / "docs" / "brain" / "projects" / "test"
+        kb_dir.mkdir(parents=True)
+        changes_dir = kb_dir / "changes" / "completed"
+        changes_dir.mkdir(parents=True)
+        (changes_dir / "2026-08-01-refactor.md").write_text("""---
+id: 2026-08-01-refactor
+type: change
+status: active
+change_state: reconciled
+outcome: success
+started_at: "2026-08-01"
+completed_at: "2026-08-03"
+project: test
+confidence: verified
+provenance: human
+knowledge_role: intent
+last_updated: "2026-08-03"
+tags:
+  - type/change
+  - change_state/reconciled
+---
+
+# Change: Refactor auth
+
+## Progress Log
+
+### 2026-08-01
+Started extracting auth middleware from monolith.
+
+### 2026-08-02
+Discovered that session store is tightly coupled to request context.
+Decided to introduce SessionProvider abstraction first.
+
+### 2026-08-03
+Completed extraction. All tests pass. Deployed to staging.
+
+## Lessons Learned
+
+Session store coupling was deeper than expected. Always check transitive
+dependencies before estimating extraction effort.
+""")
+        return kb_dir
+
+    def test_progress_log_parsed(self, tmp_path: Path) -> None:
+        mod = _load_script(_TIMELINE_PATH)
+        kb = self._make_kb(tmp_path)
+        records = mod._collect_records(kb)
+
+        change = [r for r in records if r["id"] == "2026-08-01-refactor"][0]
+        assert len(change["progress_entries"]) == 3
+
+    def test_progress_generates_events(self, tmp_path: Path) -> None:
+        mod = _load_script(_TIMELINE_PATH)
+        kb = self._make_kb(tmp_path)
+        events = mod.generate_events(kb)
+
+        progress_events = [e for e in events if e["kind"] == "change.progress"]
+        assert len(progress_events) == 3
+        # Primary event + 3 progress events
+        change_events = [e for e in events if e["id"] == "2026-08-01-refactor"]
+        assert len(change_events) >= 4
+
+
+class TestSchemaCompliance:
+    """Compiled nodes must include lifecycle + history fields from frontmatter."""
+
+    def _make_kb(self, tmp_path: Path) -> Path:
+        kb_dir = tmp_path / "docs" / "brain" / "projects" / "test"
+        kb_dir.mkdir(parents=True)
+        (kb_dir / "changes" / "completed").mkdir(parents=True, exist_ok=True)
+        (kb_dir / "changes" / "completed" / "2026-08-01-test.md").write_text("""---
+id: 2026-08-01-test
+type: change
+status: active
+change_state: reconciled
+outcome: success
+started_at: "2026-08-01"
+completed_at: "2026-08-03"
+project: test
+confidence: verified
+provenance: human
+knowledge_role: intent
+last_updated: "2026-08-03"
+tags:
+  - type/change
+---
+
+# Change: Test
+""")
+        return kb_dir
+
+    def test_change_node_has_lifecycle_fields(self, tmp_path: Path) -> None:
+        mod = _load_script(_COMPILE_GRAPH_PATH)
+        kb = self._make_kb(tmp_path)
+        result = mod.compile_graph(kb)
+
+        change_nodes = [n for n in result["nodes"] if n["type"] == "change"]
+        assert len(change_nodes) == 1
+        node = change_nodes[0]
+        assert node["status"] == "active"
+        assert node.get("change_state") == "reconciled"
+        assert node.get("outcome") == "success"
+        assert node.get("started_at") == "2026-08-01"
+        assert node.get("completed_at") == "2026-08-03"
+
+    def test_shared_frontmatter_parser_lists(self, tmp_path: Path) -> None:
+        """Shared parser handles multi-line YAML lists."""
+        sys.path.insert(0, str(_SCRIPTS_DIR))
+        from frontmatter import parse
+        fm, _ = parse("""---
+supersedes:
+  - dec-1
+  - dec-2
+tags:
+  - tag/a
+  - tag/b
+source_files:
+  - src/a.ts
+  - src/b.ts
+---
+
+# Body
+""")
+        assert fm["supersedes"] == ["dec-1", "dec-2"]
+        assert fm["tags"] == ["tag/a", "tag/b"]
+        assert fm["source_files"] == ["src/a.ts", "src/b.ts"]

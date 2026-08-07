@@ -27,9 +27,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-# ── YAML frontmatter parser (no PyYAML dependency) ───────────────────────────
-
-_FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
+from frontmatter import parse as _parse_frontmatter_full
 
 # ── Wiki-link: [[target]] or [[target|label]] ────────────────────────────────
 
@@ -106,84 +104,6 @@ def _infer_edge_type_from_section(section_heading: str | None) -> tuple[str, str
 def _infer_edge_type_fallback(source_type: str, target_type: str) -> str:
     """Fallback edge type from node-type pair."""
     return _EDGE_FALLBACK.get((source_type, target_type), "related_to")
-
-
-# ── Frontmatter parsing ──────────────────────────────────────────────────────
-
-def _parse_frontmatter(text: str) -> tuple[dict[str, Any], str]:
-    """Return (frontmatter_dict, body_without_frontmatter)."""
-    m = _FRONTMATTER_RE.match(text)
-    if not m:
-        return {}, text
-    raw = m.group(1)
-    body = text[m.end():]
-    fm: dict[str, Any] = {}
-    for line in raw.splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        if ":" in line:
-            key, _, value = line.partition(":")
-            key = key.strip()
-            value = value.strip().strip('"').strip("'")
-            # Handle YAML list items (lines starting with -)
-            if value == "":
-                fm[key] = []
-            else:
-                fm[key] = value
-    return fm, body
-
-
-def _parse_yaml_list(lines: list[str], start_idx: int, key: str) -> tuple[list[str], int]:
-    """Parse a YAML list value from frontmatter lines. Returns (items, next_index)."""
-    items: list[str] = []
-    i = start_idx
-    while i < len(lines):
-        stripped = lines[i].strip()
-        if stripped.startswith("- "):
-            items.append(stripped[2:].strip().strip('"').strip("'"))
-            i += 1
-        elif stripped == "" or stripped.startswith("#"):
-            i += 1
-        elif ":" in stripped and not stripped.startswith(" "):
-            break
-        else:
-            i += 1
-    return items, i
-
-
-def _parse_frontmatter_full(text: str) -> tuple[dict[str, Any], str]:
-    """Parse frontmatter including YAML list values for tags and source_files."""
-    m = _FRONTMATTER_RE.match(text)
-    if not m:
-        return {}, text
-    raw = m.group(1)
-    body = text[m.end():]
-    fm: dict[str, Any] = {}
-    lines = raw.splitlines()
-    i = 0
-    while i < len(lines):
-        line = lines[i].strip()
-        if not line or line.startswith("#"):
-            i += 1
-            continue
-        if ":" in line:
-            key, _, value = line.partition(":")
-            key = key.strip()
-            value = value.strip().strip('"').strip("'")
-            if value == "" or value == "[]":
-                # Check if next line starts a list
-                if i + 1 < len(lines) and lines[i + 1].strip().startswith("- "):
-                    items, i = _parse_yaml_list(lines, i + 1, key)
-                    fm[key] = items
-                else:
-                    fm[key] = [] if value == "[]" else ""
-            elif value == "null":
-                fm[key] = None
-            else:
-                fm[key] = value
-        i += 1
-    return fm, body
 
 
 # ── Section-aware wiki-link extraction ────────────────────────────────────────
@@ -333,6 +253,28 @@ def compile_graph(kb_dir: Path) -> dict[str, Any]:
         # Optional fields
         if "severity" in fm:
             node["severity"] = fm["severity"]
+        if "change_state" in fm:
+            node["change_state"] = fm["change_state"]
+        if "incident_state" in fm:
+            node["incident_state"] = fm["incident_state"]
+        if "decision_state" in fm:
+            node["decision_state"] = fm["decision_state"]
+        if "outcome" in fm:
+            node["outcome"] = fm["outcome"]
+        if "supersedes" in fm:
+            raw_sup = fm["supersedes"]
+            if isinstance(raw_sup, list):
+                node["supersedes"] = raw_sup
+            elif isinstance(raw_sup, str) and raw_sup:
+                node["supersedes"] = [s.strip() for s in raw_sup.split(",") if s.strip()]
+        if "started_at" in fm:
+            node["started_at"] = fm["started_at"]
+        if "completed_at" in fm:
+            node["completed_at"] = fm["completed_at"]
+        if "resolved_at" in fm:
+            node["resolved_at"] = fm["resolved_at"]
+        if "significance" in fm:
+            node["significance"] = fm["significance"]
         if "source_symbols" in fm:
             raw_sym = fm["source_symbols"]
             if isinstance(raw_sym, list):

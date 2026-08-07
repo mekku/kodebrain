@@ -425,13 +425,32 @@ Run the same flow as `onboard`. If user specifically requested `init` rather tha
 
 ## Sub-command: reading-pack
 
-**Purpose:** Same as `query` but saves the output as a Markdown file.
+**Purpose:** Generate a focused context pack for a task — includes relevant knowledge, source hints, warnings, AND relevant history.
 
 ### Steps
 
-1–6. Same as `query`.
-7. Write to `docs/brain/projects/<name>/reports/reading-packs/<YYYY-MM-DD>-<slug>.md`.
-8. Print: `Reading pack saved to: <path>`
+1. Run `/kodebrain query "<task>"` to get seed nodes, required reading, and source files.
+2. **Retrieve relevant history:**
+   a. Load `history/events.json`. If missing, generate: `python3 <skill_base_dir>/scripts/timeline.py <kb_dir>`
+   b. For each affected node from step 1, find events where `linked_nodes` intersects.
+   c. Also find: decisions touching same domain, similar past changes, incidents with matching linked_nodes, superseded approaches.
+3. Build the reading pack file with sections:
+   ```
+   ## Required Reading
+   ...
+   ## Likely Source Files
+   ...
+   ## Warnings
+   ...
+   ## Relevant History
+   ### Previous Decisions
+   ### Similar Past Changes
+   ### Incidents / Lessons
+   ### Superseded Approaches
+   ### Historical Warnings
+   ```
+4. Write to `docs/brain/projects/<name>/reports/reading-packs/<YYYY-MM-DD>-<slug>.md`.
+5. Print: `Reading pack saved to: <path>`
 
 ---
 

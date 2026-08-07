@@ -1,8 +1,8 @@
 ---
 id: {{domain-slug}}-{{YYYY-MM-DD}}-{{decision-slug}}
 type: decision
-decision_state: active
 status: active
+decision_state: active
 confidence: verified
 provenance: human
 knowledge_role: intent

@@ -1,8 +1,8 @@
 ---
 id: {{YYYY-MM-DD}}-{{change-slug}}
 type: change
-project: {{project-slug}}
-status: planned
+status: active
+change_state: planned
 outcome: null
 confidence: verified
 provenance: human
@@ -12,12 +12,12 @@ completed_at: null
 last_updated: {{date}}
 tags:
   - type/change
-  - status/planned
+  - change_state/planned
 ---
 
 # Change: {{Short Change Title}}
 
-**Status:** planned | in_progress | implemented | reconciled
+**State:** planned | in_progress | implemented | reconciled
 **Outcome:** success | partial | abandoned | rolled_back
 **Started:** {{YYYY-MM-DD}}
 **Completed:** {{date or "—"}}
