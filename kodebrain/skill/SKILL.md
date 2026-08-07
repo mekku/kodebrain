@@ -250,6 +250,7 @@ python3 <skill_base_dir>/scripts/harvest.py <root> \
 **1. Detect project state.** Inspect:
 - repository and file topology,
 - existing `docs/brain/`,
+- `graph/intent-sources.json` — has intent inventory been run? are there pending sources?
 - README and project docs,
 - manifests and build files,
 - existing KB schema version,
@@ -259,20 +260,22 @@ Classify state as one of:
 ```
 greenfield      — no meaningful source code, no KB
 new_brownfield  — source exists, no KB
-partial_kb      — KB exists but missing project-level knowledge
+partial_kb      — KB exists but missing project-level knowledge OR intent inventory not yet run
 legacy_kb       — older KB format detected
 stale_kb        — KB exists but outdated vs source
-onboarded       — KB is current and complete at project level
+onboarded       — KB is current and complete at project level (intent inventory run + no pending)
 ```
 
 Produce an internal **Knowledge Gap Map** across these dimensions:
 ```
 purpose, actors, core_outcomes, scope, technology, architecture,
 runtime, external_integrations, domains, domain_boundaries,
-invariants, legacy_migration
+invariants, legacy_migration, intent_sources
 ```
 
 Each gap marked: `found_in_docs` / `inferred_from_project` / `needs_human` / `unknown`.
+
+If `graph/intent-sources.json` is missing, mark `intent_sources` as `needs_human` — intent inventory has never been run. A KB without intent inventory is at best `partial_kb`.
 
 **2. Run Intent Source Inventory (deterministic).** Scan for project intent documents BEFORE harvesting source code. This is a script, not an LLM step:
 
@@ -441,16 +444,21 @@ Run the same flow as `onboard`. If user specifically requested `init` rather tha
 
 ## Sub-command: scan
 
-**Purpose:** Re-scan a project that already has a KB. Update changed nodes, add new ones, flag stale ones.
+**Purpose:** Re-scan a project that already has a KB. Update changed nodes, add new ones, flag stale ones. Re-runs intent inventory to discover new/removed intent docs.
 
 ### Steps
 
 1. Load `nodes.json`, `edges.json`, `file-index.json`.
-2. Run `python3 <skill_base_dir>/scripts/harvest.py <root> --hashes graph/file-hashes.json`. The script compares SHA-256 hashes and returns only dirty/new files in `files`.
-3. For dirty files: look up node IDs in `file-index.json`. Re-narrate affected nodes from the JSON briefs. Set `confidence: supported`.
-4. For deleted files (in old hashes but absent from new `hashes`): mark all referenced nodes `confidence: stale`. Add to `reports/needs-review.md`.
-5. For new files (in `dirty` but not in `file-index.json`): run domain/capability detection from brief. Write new node if `supported`.
-6. Update `nodes.json`. Regenerate `file-index.json` via `--build-index`. Save updated `file-hashes.json`. Print change summary.
+2. **Re-run intent inventory.** Run `python3 <skill_base_dir>/scripts/intent_inventory.py <root> --kb-dir docs/brain/projects/<name>/`. Compare old `intent-sources.json` with new output:
+   - New intent docs discovered → add to sources, mark `requires_confirmation: true`
+   - Previously confirmed docs still present → preserve `status: current`
+   - Intent docs removed from disk → mark `status: historical`, remove from confirmed list
+   - Print: "Intent inventory: N discovered, M new, K pending confirmation"
+3. Run `python3 <skill_base_dir>/scripts/harvest.py <root> --hashes graph/file-hashes.json`. The script compares SHA-256 hashes and returns only dirty/new files in `files`.
+4. For dirty files: look up node IDs in `file-index.json`. Re-narrate affected nodes from the JSON briefs. Set `confidence: supported`.
+5. For deleted files (in old hashes but absent from new `hashes`): mark all referenced nodes `confidence: stale`. Add to `reports/needs-review.md`.
+6. For new files (in `dirty` but not in `file-index.json`): run domain/capability detection from brief. Write new node if `supported`.
+7. Update `nodes.json`. Regenerate `file-index.json` via `--build-index`. Save updated `file-hashes.json`. Print change summary.
 
 ---
 
@@ -553,12 +561,13 @@ Run the same flow as `onboard`. If user specifically requested `init` rather tha
 
 ## Sub-command: review
 
-**Purpose:** Check whether KB pages accurately reflect current source code.
+**Purpose:** Check whether KB pages accurately reflect current source code and intent coverage.
 
 **Input:** Optional `--page <path>`. Default: review all pages.
 
 ### Steps
 
+0. **Check intent inventory.** If `graph/intent-sources.json` is missing, run `python3 <skill_base_dir>/scripts/intent_inventory.py <root> --kb-dir docs/brain/projects/<name>/`. Print any newly discovered intent sources. If `pending_confirmation: true`, print "⚠ Intent pending — run adaptive interview."
 1. For each KB page:
    a. Read frontmatter: get `source_files`, `status`, `confidence`, `provenance`.
    b. Check each source file still exists.
