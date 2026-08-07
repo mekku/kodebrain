@@ -164,6 +164,7 @@ tags:
 - `supported` → write draft page immediately
 - `inferred` → write with `<!-- draft: inferred — not human-reviewed -->` banner
 - `ambiguous` or `needs_human_review` → add to needs-review.md report, do NOT write a page
+- **Canonical source rule:** If the page's normative definition comes from a canonical spec (`docs/design/spec/*.md`), do NOT copy enum tables or state definitions into the KB page. Instead: set `knowledge_role: reference`, declare `canonical_source` with path + anchor, use `templates/reference.md` (Canonical Definition, Project Context, Relationships, Evidence). Duplicating canonical definitions into intent pages is `canonical-duplication` — the validation gate flags it as ERROR.
 
 **Valid `status`:** `active` `legacy` `deprecated` `partially_migrated` `unused` `experimental` `unknown` `needs_review`
 
@@ -338,8 +339,9 @@ Save `file-hashes.json` from harvest output.
 
 **9. Run validation gate.** The gate is mandatory — onboard may not declare success without passing it:
 ```bash
-python3 <skill_base_dir>/scripts/validate.py <kb_dir> --project-root <root> --render
+python3 <skill_base_dir>/scripts/validate.py <kb_dir> --project-root <root>
 ```
+Reports are always rendered during validation. The `--render` flag is accepted for backward compatibility but is no longer required.
 
 **10. Check completion state.** Read `graph/validation-result.json`:
 - `completion_state: blocked` → print ERROR findings, tell user to resolve, STOP. Do NOT declare onboard complete.
@@ -347,7 +349,7 @@ python3 <skill_base_dir>/scripts/validate.py <kb_dir> --project-root <root> --re
 - `completion_state: needs_review` → print summary, note review items
 - `completion_state: complete` → print summary
 
-Reports (`drift.md`, `needs-review.md`, `knowledge-gaps.md`) are rendered from validation findings by the `--render` flag — they are pure projections, never independently authored.
+Reports (`drift.md`, `needs-review.md`, `knowledge-gaps.md`) are rendered from validation findings during validation — they are pure projections, never independently authored.
 
 **11. Write unmapped-files and suspected-legacy reports.** These are not validation-derived:
 - `reports/unmapped-files.md` — files not assigned to any domain
@@ -755,6 +757,7 @@ Page templates are in `templates/` relative to this SKILL.md:
 - `templates/capability.md`
 - `templates/flow.md`
 - `templates/concept.md`
+- `templates/reference.md` — constrained template for pages with `canonical_source`
 - `templates/model.md`
 - `templates/decision.md`
 - `templates/risk.md`
