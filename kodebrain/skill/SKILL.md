@@ -308,7 +308,7 @@ Example output:
 }
 ```
 
-**3. Adaptive interview — intent gate.** Read `graph/intent-sources.json`. For each source where `requires_confirmation: true`, ask the human exactly one question:
+**3. Adaptive interview — intent gate.** Read `graph/intent-sources.json`. For each source where `requires_confirmation: true` AND `resolution.state` is `pending`, ask the human exactly one question:
 
 > **`<title>`** (`<path>`, `<kind>`, status: `<status>`)
 > Is this still the current specification the system should follow?
@@ -318,9 +318,19 @@ Example output:
 > [3] No — mark historical / superseded
 > [4] Skip — decide later
 
-Only draft or unknown documents get interviewed. Confirmed documents are accepted without interview. If no documents require confirmation, skip this step entirely.
+Only draft or unknown documents with pending resolution get interviewed. Confirmed documents and previously-resolved documents (file unchanged) are accepted without interview. If no documents require confirmation, skip this step entirely.
 
-**Onboard gate:** If `pending_confirmation: true` and the human has not yet answered, onboard may NOT declare completion. Unconfirmed intent documents mean the Project Contract may be missing authoritative intent — silent source-as-truth is not acceptable.
+**Persist the answer.** After the human responds, write the resolution:
+
+```bash
+python3 <skill_base_dir>/scripts/intent_inventory.py <root> \
+  --kb-dir docs/brain/projects/<name>/ \
+  --resolve "<source_path>" <accepted|partial|rejected|deferred>
+```
+
+This updates `intent-sources.json` in place with `resolution.state`, `resolution.provenance: human`, and `resolution.resolved_at`. The resolution persists across re-scans as long as the source file is unchanged.
+
+**Onboard gate:** The validation gate (Step 10, Check 7) reads `intent-sources.json`. Pending resolutions produce `BLOCKING_INCOMPLETE` → `completion_state: blocked`. The agent does NOT need to remember this gate — the validator enforces it.
 
 Interview output gets `provenance: human`, `knowledge_role: intent`. Mark confirmed intent sources in the Project Contract's `intent_sources` list.
 
@@ -386,12 +396,11 @@ python3 <skill_base_dir>/scripts/validate.py <kb_dir> --project-root <root>
 ```
 Reports are always rendered during validation. The `--render` flag is accepted for backward compatibility but is no longer required.
 
-**10. Check completion state.** Read `graph/validation-result.json` AND `graph/intent-sources.json`:
+**10. Check completion state.** Read `graph/validation-result.json`. The validation gate now includes intent inventory (Check 7) — pending intent resolution produces a BLOCKING_INCOMPLETE finding and blocks completion:
 
-- `completion_state: blocked` → print ERROR findings, tell user to resolve, STOP. Do NOT declare onboard complete.
-- `pending_confirmation: true` (from intent-sources.json) → print "⚠ Pending intent confirmation — run adaptive interview (Step 3) before declaring complete." Do NOT declare complete.
+- `completion_state: blocked` → print ERROR and BLOCKING_INCOMPLETE findings, tell user to resolve, STOP. Do NOT declare onboard complete.
 - `completion_state: complete_with_drift` → print summary, note drift items
-- `completion_state: needs_review` → print summary, note review items
+- `completion_state: needs_review` → print summary, note review items (includes missing intent inventory)
 - `completion_state: complete` → print summary
 
 Reports (`drift.md`, `needs-review.md`, `knowledge-gaps.md`) are rendered from validation findings during validation — they are pure projections, never independently authored.

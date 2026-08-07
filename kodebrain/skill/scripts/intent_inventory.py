@@ -15,6 +15,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -22,27 +23,9 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-# ── frontmatter parse (inline — avoids import path complexity) ──────────
-
-_FM_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
-
-
-def _parse_simple_frontmatter(text: str) -> dict:
-    """Extract flat key: value pairs from YAML frontmatter."""
-    m = _FM_RE.match(text)
-    if not m:
-        return {}
-    result: dict = {}
-    for line in m.group(1).split("\n"):
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        if ":" in line:
-            key, _, val = line.partition(":")
-            key = key.strip()
-            val = val.strip().strip('"').strip("'")
-            result[key] = val
-    return result
+# Reuse shared frontmatter parser
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from frontmatter import parse as parse_frontmatter
 
 
 # ── glob patterns ────────────────────────────────────────────────────────
@@ -106,13 +89,18 @@ HISTORICAL_MARKERS: list[str] = [
 ]
 
 
+def _hash_file(file_path: Path) -> str:
+    """SHA-256 hex digest of file contents."""
+    return hashlib.sha256(file_path.read_bytes()).hexdigest()
+
+
 def _extract_status(file_path: Path, fm: dict) -> tuple[str, bool]:
     """Return (status, requires_confirmation) from frontmatter or content markers.
 
     Priority: frontmatter ``status`` field > explicit status line in preamble >
-    content markers in preamble only > git age fallback.
+    content markers in preamble only > fallback.
     """
-    # 1. Frontmatter status field
+    # 1. Frontmatter status field (from shared parser)
     fm_status = fm.get("status", "").strip().lower()
     if fm_status in ("draft", "wip"):
         return ("draft", True)
@@ -214,11 +202,31 @@ def _git_last_modified(root: Path, rel_path: str) -> str | None:
 
 # ── main inventory ───────────────────────────────────────────────────────
 
+def _load_existing_inventory(graph_dir: Path | None) -> dict[str, dict]:
+    """Load existing intent-sources.json and index by path for resolution carry-over."""
+    if not graph_dir:
+        return {}
+    existing_path = graph_dir / "intent-sources.json"
+    if not existing_path.exists():
+        return {}
+    try:
+        existing = json.loads(existing_path.read_text())
+        return {s["path"]: s for s in existing.get("sources", [])}
+    except (json.JSONDecodeError, KeyError, OSError):
+        return {}
+
+
 def scan_intent_sources(root: Path, kb_dir: Path | None = None) -> dict:
     """Scan *root* for intent documents and classify each.
 
-    Returns the ``intent-sources.json`` structure.
+    On re-run, preserves ``resolution`` for sources whose file hash is
+    unchanged. New sources get ``resolution.state: pending``.
+    ``pending_confirmation`` is derived from unresolved sources, not from
+    document status.
     """
+    graph_dir = (kb_dir / "graph") if kb_dir else None
+    previous = _load_existing_inventory(graph_dir)
+
     sources: list[dict] = []
     seen: set[str] = set()
 
@@ -238,8 +246,20 @@ def scan_intent_sources(root: Path, kb_dir: Path | None = None) -> dict:
             except (OSError, UnicodeDecodeError):
                 continue
 
-            fm = _parse_simple_frontmatter(text)
+            file_hash = _hash_file(match_path)
+            fm, _body = parse_frontmatter(text)
             status, requires_confirmation = _extract_status(match_path, fm)
+
+            # Preserve resolution if file unchanged from previous inventory
+            prev = previous.get(rel)
+            if prev and prev.get("_file_hash") == file_hash and "resolution" in prev:
+                resolution = prev["resolution"]
+            else:
+                resolution = {
+                    "state": "pending",
+                    "provenance": None,
+                    "resolved_at": None,
+                }
 
             entry: dict = {
                 "path": rel,
@@ -247,8 +267,10 @@ def scan_intent_sources(root: Path, kb_dir: Path | None = None) -> dict:
                 "status": status,
                 "authority": authority,
                 "requires_confirmation": requires_confirmation,
+                "resolution": resolution,
                 "last_modified": _git_last_modified(root, rel),
                 "title": fm.get("title", fm.get("name", "")),
+                "_file_hash": file_hash,
             }
 
             # Only extract rich fields for confirmed specs
@@ -269,6 +291,12 @@ def scan_intent_sources(root: Path, kb_dir: Path | None = None) -> dict:
     draft_or_unknown = sum(1 for s in sources if s["requires_confirmation"])
     historical = sum(1 for s in sources if s["status"] == "historical")
 
+    # pending_confirmation derived from resolution state, not document status
+    pending = sum(1 for s in sources if s["resolution"]["state"] == "pending")
+    accepted = sum(1 for s in sources if s["resolution"]["state"] == "accepted")
+    partial = sum(1 for s in sources if s["resolution"]["state"] == "partial")
+    rejected = sum(1 for s in sources if s["resolution"]["state"] == "rejected")
+
     result = {
         "scanned_at": datetime.now(timezone.utc).isoformat(),
         "project_root": str(root.resolve()),
@@ -276,11 +304,63 @@ def scan_intent_sources(root: Path, kb_dir: Path | None = None) -> dict:
         "confirmed": confirmed,
         "draft_or_unknown": draft_or_unknown,
         "historical": historical,
-        "pending_confirmation": draft_or_unknown > 0,
+        "pending_resolution": pending,
+        "accepted": accepted,
+        "partial": partial,
+        "rejected": rejected,
+        "pending_confirmation": pending > 0,
         "sources": sources,
     }
 
     return result
+
+
+def apply_resolution(kb_dir: Path, source_path: str, state: str) -> dict | None:
+    """Apply a human resolution to one intent source.
+
+    ``state`` must be one of: accepted, partial, rejected, deferred.
+
+    Updates ``intent-sources.json`` in place and returns the full inventory
+    with recalculated counts. Returns None if the source is not found.
+    """
+    valid_states = {"accepted", "partial", "rejected", "deferred"}
+    if state not in valid_states:
+        raise ValueError(f"Invalid resolution state: {state}. Must be one of {valid_states}")
+
+    inventory_path = kb_dir / "graph" / "intent-sources.json"
+    if not inventory_path.exists():
+        print(f"Error: {inventory_path} not found — run intent_inventory.py first", file=sys.stderr)
+        return None
+
+    inventory = json.loads(inventory_path.read_text())
+    sources = inventory.get("sources", [])
+    target = next((s for s in sources if s["path"] == source_path), None)
+
+    if target is None:
+        print(f"Error: source '{source_path}' not found in inventory", file=sys.stderr)
+        return None
+
+    target["resolution"] = {
+        "state": state,
+        "provenance": "human",
+        "resolved_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    # Recalculate counts
+    pending = sum(1 for s in sources if s["resolution"]["state"] == "pending")
+    accepted = sum(1 for s in sources if s["resolution"]["state"] == "accepted")
+    partial = sum(1 for s in sources if s["resolution"]["state"] == "partial")
+    rejected = sum(1 for s in sources if s["resolution"]["state"] == "rejected")
+
+    inventory["pending_resolution"] = pending
+    inventory["accepted"] = accepted
+    inventory["partial"] = partial
+    inventory["rejected"] = rejected
+    inventory["pending_confirmation"] = pending > 0
+    inventory["scanned_at"] = datetime.now(timezone.utc).isoformat()
+
+    inventory_path.write_text(json.dumps(inventory, indent=2, ensure_ascii=False) + "\n")
+    return inventory
 
 
 # ── CLI ──────────────────────────────────────────────────────────────────
@@ -301,6 +381,12 @@ def main() -> None:
         "--kb-dir",
         help="KB project dir (writes to <kb_dir>/graph/intent-sources.json)",
     )
+    parser.add_argument(
+        "--resolve",
+        nargs=2,
+        metavar=("SOURCE_PATH", "STATE"),
+        help="Apply human resolution: <path> <accepted|partial|rejected|deferred>",
+    )
     args = parser.parse_args()
 
     root = Path(args.root).resolve()
@@ -308,28 +394,48 @@ def main() -> None:
         print(f'Error: root "{root}" does not exist', file=sys.stderr)
         sys.exit(1)
 
-    result = scan_intent_sources(root)
+    # ── --resolve mode ──────────────────────────────────────────────────────
+    if args.resolve:
+        if not args.kb_dir:
+            print("Error: --resolve requires --kb-dir", file=sys.stderr)
+            sys.exit(1)
+        source_path, state = args.resolve
+        result = apply_resolution(Path(args.kb_dir), source_path, state)
+        if result is None:
+            sys.exit(1)
+        json_str = json.dumps(result, indent=2, ensure_ascii=False)
+        if args.output:
+            Path(args.output).write_text(json_str + "\n")
+        print(json_str)
+        return
 
-    json_str = json.dumps(result, indent=2, ensure_ascii=False)
+    result = scan_intent_sources(root, Path(args.kb_dir) if args.kb_dir else None)
 
-    # Write to KB dir if specified
+    json_str_persist = json.dumps(result, indent=2, ensure_ascii=False)
+    # Strip internal hashes for stdout/file output (persisted KB copy keeps them)
+    result_clean = json.loads(json_str_persist)
+    for s in result_clean.get("sources", []):
+        s.pop("_file_hash", None)
+    json_str_clean = json.dumps(result_clean, indent=2, ensure_ascii=False)
+
+    # Write to KB dir if specified (with hashes for change detection)
     if args.kb_dir:
         kb_path = Path(args.kb_dir)
         kb_path.mkdir(parents=True, exist_ok=True)
         graph_dir = kb_path / "graph"
         graph_dir.mkdir(parents=True, exist_ok=True)
         output_path = graph_dir / "intent-sources.json"
-        output_path.write_text(json_str + "\n")
+        output_path.write_text(json_str_persist + "\n")
         print(f"Intent sources written to {output_path}", file=sys.stderr)
 
     # Write to explicit output file
     if args.output:
-        Path(args.output).write_text(json_str + "\n")
+        Path(args.output).write_text(json_str_clean + "\n")
         print(f"Intent sources written to {args.output}", file=sys.stderr)
 
-    # Default: stdout
+    # Default: stdout (clean, no internal hashes)
     if not args.output and not args.kb_dir:
-        print(json_str)
+        print(json_str_clean)
 
 
 if __name__ == "__main__":

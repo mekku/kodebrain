@@ -642,6 +642,32 @@ def run_benchmark(kb_project_dir: Path, source_root: Path | None = None) -> dict
     needs_review_items = _count_headings(reports_dir / 'needs-review.md')
     suspected_legacy_items = _count_headings(reports_dir / 'suspected-legacy.md')
 
+    # ── Intent coverage ───────────────────────────────────────────────────────
+    intent_sources_path = graph_dir / 'intent-sources.json'
+    intent_coverage: dict | None = None
+    if intent_sources_path.exists():
+        intent_data = json.loads(intent_sources_path.read_text())
+        discovered = intent_data.get('discovered', 0)
+        confirmed = intent_data.get('confirmed', 0)
+        intent_coverage = {
+            'discovered': discovered,
+            'confirmed': confirmed,
+            'draft_or_unknown': intent_data.get('draft_or_unknown', 0),
+            'historical': intent_data.get('historical', 0),
+            'pending_confirmation': intent_data.get('pending_confirmation', discovered > confirmed),
+            'coverage_pct': round(confirmed / max(discovered, 1) * 100, 1),
+        }
+    else:
+        intent_coverage = {
+            'discovered': 0,
+            'confirmed': 0,
+            'draft_or_unknown': 0,
+            'historical': 0,
+            'pending_confirmation': False,
+            'coverage_pct': 0.0,
+            'note': 'intent-sources.json not found — run intent_inventory.py first',
+        }
+
     # ── Quality scores ────────────────────────────────────────────────────────
     n_total = len(nodes)
     confidence_score = (
@@ -674,32 +700,6 @@ def run_benchmark(kb_project_dir: Path, source_root: Path | None = None) -> dict
     # ── Drift items ───────────────────────────────────────────────────────────
     drift_path = reports_dir / 'drift.md'
     drift_items = _count_headings(drift_path) if drift_path.exists() else 0
-
-    # ── Intent coverage ───────────────────────────────────────────────────────
-    intent_sources_path = graph_dir / 'intent-sources.json'
-    intent_coverage: dict | None = None
-    if intent_sources_path.exists():
-        intent_data = json.loads(intent_sources_path.read_text())
-        discovered = intent_data.get('discovered', 0)
-        confirmed = intent_data.get('confirmed', 0)
-        intent_coverage = {
-            'discovered': discovered,
-            'confirmed': confirmed,
-            'draft_or_unknown': intent_data.get('draft_or_unknown', 0),
-            'historical': intent_data.get('historical', 0),
-            'pending_confirmation': intent_data.get('pending_confirmation', discovered > confirmed),
-            'coverage_pct': round(confirmed / max(discovered, 1) * 100, 1),
-        }
-    else:
-        intent_coverage = {
-            'discovered': 0,
-            'confirmed': 0,
-            'draft_or_unknown': 0,
-            'historical': 0,
-            'pending_confirmation': False,
-            'coverage_pct': 0.0,
-            'note': 'intent-sources.json not found — run intent_inventory.py first',
-        }
 
     # ── Token efficiency ──────────────────────────────────────────────────────
     kb_md_bytes = sum(p.stat().st_size for p in kb_project_dir.rglob('*.md'))

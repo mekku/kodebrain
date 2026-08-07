@@ -761,14 +761,84 @@ def compute_completion_state(findings: List[Dict]) -> str:
     errors = [f for f in findings if f["severity"] == "ERROR"]
     drifts = [f for f in findings if f["severity"] == "DRIFT"]
     reviews = [f for f in findings if f["severity"] == "REVIEW"]
+    blocking = [f for f in findings if f["severity"] == "BLOCKING_INCOMPLETE"]
 
     if errors:
+        return "blocked"
+    if blocking:
         return "blocked"
     if drifts:
         return "complete_with_drift"
     if reviews:
         return "needs_review"
     return "complete"
+
+
+# ── Check 7: Intent Inventory Gate ───────────────────────────────────
+
+def check_intent_inventory_gate(kb_dir: Path) -> List[Dict]:
+    """Validate that intent inventory has been run and all sources are resolved.
+
+    If intent-sources.json is missing, emit a REVIEW finding so the KB
+    author knows intent was never inventoried. If pending confirmation
+    exists, emit BLOCKING_INCOMPLETE — onboard may not declare complete
+    with unresolved intent.
+    """
+    findings: List[Dict] = []
+    inventory_path = kb_dir / "graph" / "intent-sources.json"
+
+    if not inventory_path.exists():
+        findings.append({
+            "id": "REV-INT-001",
+            "check": "intent-inventory-gate",
+            "severity": "REVIEW",
+            "rule": "intent-inventory-missing",
+            "description": (
+                "intent-sources.json not found — intent inventory has never been run. "
+                "Run intent_inventory.py to discover project intent documents "
+                "(specs, ADRs, architecture docs, PRDs). Without intent inventory, "
+                "source code is treated as canonical truth and drift may be silently missed."
+            ),
+        })
+        return findings
+
+    try:
+        inventory = json.loads(inventory_path.read_text())
+    except (json.JSONDecodeError, OSError):
+        findings.append({
+            "id": "ERR-INT-001",
+            "check": "intent-inventory-gate",
+            "severity": "ERROR",
+            "rule": "intent-inventory-corrupt",
+            "description": "intent-sources.json exists but cannot be parsed.",
+        })
+        return findings
+
+    pending = inventory.get("pending_resolution", inventory.get("draft_or_unknown", 0))
+    discovered = inventory.get("discovered", 0)
+    confirmed = inventory.get("accepted", inventory.get("confirmed", 0))
+
+    if pending > 0:
+        findings.append({
+            "id": "BLK-INT-001",
+            "check": "intent-inventory-gate",
+            "severity": "BLOCKING_INCOMPLETE",
+            "rule": "intent-pending-resolution",
+            "node": None,
+            "description": (
+                f"{pending} of {discovered} intent sources have unresolved confirmation. "
+                f"({confirmed} accepted, {pending} pending). "
+                "Run adaptive interview to confirm whether draft/unknown intent documents "
+                "are still current. Onboard cannot declare complete with unresolved intent."
+            ),
+            "details": {
+                "discovered": discovered,
+                "accepted": confirmed,
+                "pending": pending,
+            },
+        })
+
+    return findings
 
 
 def run_validation(kb_dir: Path, project_root: Path) -> Dict:
@@ -821,6 +891,11 @@ def run_validation(kb_dir: Path, project_root: Path) -> Dict:
     all_findings.extend(rpt_findings)
     check_counts["report-consistency"] = 5
 
+    # Check 7: Intent inventory gate — has inventory been run? are sources resolved?
+    int_inv_findings = check_intent_inventory_gate(kb_dir)
+    all_findings.extend(int_inv_findings)
+    check_counts["intent-inventory-gate"] = 1
+
     # Assign sequential IDs
     for i, f in enumerate(all_findings):
         if "id" not in f:
@@ -836,7 +911,8 @@ def run_validation(kb_dir: Path, project_root: Path) -> Dict:
     checks_run = {}
     for check_name in ["referential-integrity", "required-artifact-integrity",
                         "provenance-consistency", "intent-observed-consistency",
-                        "canonical-authority", "report-consistency"]:
+                        "canonical-authority", "report-consistency",
+                        "intent-inventory-gate"]:
         check_findings = [f for f in all_findings if f["check"] == check_name]
         total = check_counts.get(check_name, 0)
         checks_run[check_name] = {
