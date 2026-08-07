@@ -268,39 +268,143 @@ def _scan_manifests(root: Path) -> dict[str, Any]:
     return found
 
 
+def _extract_package_names(root: Path) -> set[str]:
+    """Extract exact dependency package names from structured manifest files."""
+    packages: set[str] = set()
+
+    # package.json: dependencies + devDependencies + peerDependencies
+    pkg_json = root / "package.json"
+    if pkg_json.exists():
+        try:
+            pkg = json.loads(pkg_json.read_text())
+            for dep_group in ("dependencies", "devDependencies", "peerDependencies"):
+                deps = pkg.get(dep_group, {})
+                if isinstance(deps, dict):
+                    packages.update(deps.keys())
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    # pyproject.toml: [project] dependencies
+    pyproject = root / "pyproject.toml"
+    if pyproject.exists():
+        try:
+            content = pyproject.read_text(encoding="utf-8", errors="replace")
+            in_deps = False
+            for line in content.splitlines():
+                stripped = line.strip()
+                if stripped.startswith("dependencies") and "=" in stripped:
+                    in_deps = True
+                    # Inline list: dependencies = ["pkg1", "pkg2"]
+                    list_match = re.search(r"\[(.*?)\]", stripped)
+                    if list_match:
+                        for item in list_match.group(1).split(","):
+                            pkg_name = item.strip().strip('"').strip("'")
+                            # Extract just the package name (no version constraints)
+                            pkg_name = re.split(r"[><=!~;]", pkg_name)[0].strip()
+                            if pkg_name:
+                                packages.add(pkg_name.lower())
+                    continue
+                if in_deps:
+                    if stripped.startswith("["):
+                        break
+                    if stripped.startswith("- "):
+                        continue
+                    if "=" in stripped and not stripped.startswith("["):
+                        in_deps = False
+        except OSError:
+            pass
+
+    # go.mod: require blocks
+    go_mod = root / "go.mod"
+    if go_mod.exists():
+        try:
+            content = go_mod.read_text(encoding="utf-8", errors="replace")
+            in_require = False
+            for line in content.splitlines():
+                stripped = line.strip()
+                if stripped.startswith("require ("):
+                    in_require = True
+                    continue
+                if in_require:
+                    if stripped == ")":
+                        in_require = False
+                        continue
+                    parts = stripped.split()
+                    if parts and len(parts) >= 1:
+                        pkg = parts[0]
+                        # Skip version strings (v1, v2.3.4, etc.)
+                        if re.match(r"^v\d+", pkg) and "/" not in pkg:
+                            continue
+                        # Extract base name, skipping version-like final segments
+                        segments = pkg.split("/")
+                        # If last segment looks like a version (v2, v1.9.0), use second-to-last
+                        if len(segments) >= 2 and re.match(r"^v\d+", segments[-1]):
+                            base = segments[-2]  # e.g., github.com/jackc/pgx/v5 → pgx
+                        else:
+                            base = segments[-1]
+                        if base and not re.match(r"^v\d+$", base):
+                            packages.add(base.lower())
+                        packages.add(pkg.lower())
+        except OSError:
+            pass
+
+    return packages
+
+
 def _scan_fingerprints(root: Path) -> dict[str, list[dict[str, str]]]:
-    """Detect frameworks and libraries from manifest content patterns."""
+    """Detect frameworks and libraries. Structured manifest parsing first, substring fallback."""
     categorized: dict[str, list[dict[str, str]]] = {}
     seen: set[tuple[str, str]] = set()
 
+    # Primary: exact package name matching from structured manifests
+    packages = _extract_package_names(root)
+
     for file_pat, content_pat, category, name in _FINGERPRINTS:
+        if (category, name) in seen:
+            continue
+
+        # Check if content_pat matches an exact package name
+        if content_pat and content_pat.lower() in packages:
+            categorized.setdefault(category, []).append(
+                {"name": name, "evidence": f"package.json dependencies (exact match: {content_pat})"}
+            )
+            seen.add((category, name))
+            continue
+
+        # File-existence fingerprints (no content pattern)
+        if not content_pat:
+            if "*" in file_pat:
+                matches = list(root.glob(file_pat))
+            else:
+                p = root / file_pat
+                matches = [p] if p.exists() else []
+
+            if matches:
+                categorized.setdefault(category, []).append(
+                    {"name": name, "evidence": str(matches[0].relative_to(root))}
+                )
+                seen.add((category, name))
+            continue
+
+        # Fallback: substring matching in manifest content
         if "*" in file_pat:
-            matches = list(root.glob(file_pat))
+            file_matches = list(root.glob(file_pat))
         else:
-            p = root / file_pat
-            matches = [p] if p.exists() else []
+            fp = root / file_pat
+            file_matches = [fp] if fp.exists() else []
 
-        for match in matches:
-            if not content_pat:
-                # File existence is enough signal
-                if (category, name) not in seen:
-                    categorized.setdefault(category, []).append(
-                        {"name": name, "evidence": str(match.relative_to(root))}
-                    )
-                    seen.add((category, name))
-                continue
-
+        for match in file_matches:
             try:
                 content = match.read_text(encoding="utf-8", errors="replace").lower()
             except OSError:
                 continue
 
             if content_pat.lower() in content:
-                if (category, name) not in seen:
-                    categorized.setdefault(category, []).append(
-                        {"name": name, "evidence": str(match.relative_to(root))}
-                    )
-                    seen.add((category, name))
+                categorized.setdefault(category, []).append(
+                    {"name": name, "evidence": f"{match.relative_to(root)} (substring match)"}
+                )
+                seen.add((category, name))
+                break  # one evidence is enough
 
     return categorized
 

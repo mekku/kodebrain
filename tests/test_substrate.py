@@ -671,49 +671,71 @@ tags:
 # Test
 
 ## Purpose
-Test project.
+Test project that validates the Kode Brain onboarding pipeline end-to-end.
+It exercises state detection, gap mapping, and graph compilation.
 
 ## Primary Users / Actors
-- Devs
+- Backend developers building API services
+- Frontend developers consuming the API
+- DevOps engineers managing deployment pipelines
 
 ## Core Outcomes
-1. Works
+1. Users can authenticate and receive session tokens
+2. Users can create and manage resources through the API
+3. System emits audit events for all state-changing operations
 
 ## Scope
 ### In Scope
-- Everything
+- Authentication and session management
+- Resource CRUD operations
+- Audit logging and event emission
 
 ### Out of Scope
-- Nothing
+- Payment processing
+- Third-party integrations beyond the core API
 
 ## Technology Summary
 | Role | Tech |
 |---|---|
-| Frontend | React |
+| Frontend | React with Next.js |
+| Backend | Express on Node.js |
+| Database | PostgreSQL via Prisma ORM |
+| Cache | Redis |
+| Queue | BullMQ |
 
 ## System Architecture
-Layered.
+The system follows a layered architecture with domain-driven design.
+Each domain owns its data and exposes capabilities through service boundaries.
+Infrastructure is containerized and deployed on Kubernetes.
 
 ## Domains
-- [[auth|Auth]]
+- [[auth|Auth domain]] — manages authentication and session lifecycle
+- [[resources|Resources domain]] — CRUD operations for core resources
 
 ## Runtime Entry Points
-- `npm start`
+- `npm start` — HTTP API server on port 3000
+- `npm run worker` — Background job processor
 
 ## External Systems
-- Stripe
+- Stripe — payment processing (planned, not yet integrated)
+- SendGrid — transactional email delivery
 
 ## System-wide Invariants
-- Idempotent
+- All state-changing operations must produce audit events
+- Session tokens expire after 24 hours of inactivity
+- Database migrations are forward-only, never rolled back
 
 ## Current Risks / Legacy / Migration
-None.
+- Auth module partially migrated from v1 session store to v2 JWT-based store
+- Legacy admin panel still serves on /admin (migration planned Q4)
 
 ## Active Changes
-None.
+- [[changes/active/2026-08-01-migrate-sessions|Migrate sessions to JWT]]
 
 ## Where To Start
-Read this.
+Read this page, then pick a domain from the Domains section relevant to your task.
+Check the Active Changes section for in-progress work that may affect your changes.
+Use /kodebrain reading-pack for focused context before touching code.
 """
         proj = self._make_project(tmp_path, {
             "src/index.ts": "console.log('hi')",
@@ -870,6 +892,41 @@ class TestMigrateKB:
         )
         (graph_dir / "file-index.json").write_text("{}")
         (graph_dir / "file-hashes.json").write_text("{}")
+        # Also create a legacy Markdown page for Markdown-first migration
+        domain_dir = kb_dir / "domains" / "auth" / "flows"
+        domain_dir.mkdir(parents=True)
+        (domain_dir / "login.md").write_text("""---
+id: auth/login-flow
+type: flow
+name: Login Flow
+summary: Handles user login
+project: test
+domain: auth
+status: active
+confidence: source_supported
+sourceFiles:
+  - src/auth/login.ts
+sourceSymbols:
+  - loginHandler
+lastUpdated: "2026-05-07"
+createdBy: knowledge_builder
+tags:
+  - type/flow
+  - domain/auth
+  - status/active
+---
+
+# Login Flow
+
+## Short Summary
+Handles user login.
+
+## Depends On
+- [[auth/session-model|Session Model]]
+
+## Part Of
+- [[auth-login|Login capability]]
+""")
         return kb_dir
 
     def _legacy_node(self) -> dict:
@@ -895,10 +952,42 @@ class TestMigrateKB:
         needs, version, reasons = mod._detect_legacy(kb)
         assert needs is True
         assert version == "0.1"
-        assert any("sourceFiles" in r for r in reasons)
+        # Detection now scans Markdown first — finds hierarchical IDs and camelCase
+        assert any("hierarchical" in r or "camelCase" in r or "sourceFiles" in r for r in reasons)
 
     def test_detects_vnext_no_migration_needed(self, tmp_path: Path) -> None:
         mod = _load_script(_MIGRATE_KB_PATH)
+        # Create vNext KB with flat IDs, snake_case, provenance, knowledge_role
+        kb_dir = tmp_path / "docs" / "brain" / "projects" / "test-project"
+        page = kb_dir / "domains" / "auth" / "flows"
+        page.mkdir(parents=True)
+        (page / "auth-login-flow.md").write_text("""---
+id: auth-login-flow
+type: flow
+name: Login Flow
+summary: Handles user login
+project: test
+domain: auth
+status: active
+confidence: supported
+provenance: source_code
+knowledge_role: observed
+source_files:
+  - src/auth/login.ts
+last_updated: "2026-08-07"
+tags:
+  - type/flow
+  - domain/auth
+  - status/active
+---
+
+# Login Flow
+
+Handles user authentication.
+""")
+        # Graph files
+        graph_dir = kb_dir / "graph"
+        graph_dir.mkdir(parents=True)
         vnext_node = {
             "id": "auth-login-flow",
             "type": "flow",
@@ -913,8 +1002,11 @@ class TestMigrateKB:
             "source_files": ["src/auth/login.ts"],
             "last_updated": "2026-08-07",
         }
-        kb = self._make_kb(tmp_path, [vnext_node])
-        needs, version, reasons = mod._detect_legacy(kb)
+        (graph_dir / "nodes.json").write_text(json.dumps([vnext_node]))
+        (graph_dir / "edges.json").write_text("[]")
+        (graph_dir / "file-index.json").write_text("{}")
+        (graph_dir / "file-hashes.json").write_text("{}")
+        needs, version, reasons = mod._detect_legacy(kb_dir)
         assert needs is False
 
     def test_migrate_hierarchical_id_to_flat(self, tmp_path: Path) -> None:
@@ -922,11 +1014,15 @@ class TestMigrateKB:
         kb = self._make_kb(tmp_path, [self._legacy_node()])
         report = mod.migrate(kb, dry_run=False)
         assert report["migrated"] is True
+        # Markdown page has hierarchical ID → gets migrated
         assert report["ids_renamed"] >= 1
 
-        # Verify node was written with flat ID
-        nodes = json.loads((kb / "graph" / "nodes.json").read_text())
-        assert nodes[0]["id"] == "auth-login-flow"
+        # File was renamed: login.md → auth-login-flow.md
+        new_page = kb / "domains" / "auth" / "flows" / "auth-login-flow.md"
+        assert new_page.exists()
+        content = new_page.read_text()
+        assert "auth-login-flow" in content
+        assert "auth/login-flow" not in content
 
     def test_migrate_camelcase_to_snakecase(self, tmp_path: Path) -> None:
         mod = _load_script(_MIGRATE_KB_PATH)
@@ -1000,14 +1096,11 @@ class TestMigrateKB:
     def test_preserves_human_notes(self, tmp_path: Path) -> None:
         mod = _load_script(_MIGRATE_KB_PATH)
         kb = self._make_kb(tmp_path, [self._legacy_node()])
-        # Add a markdown page with human notes
-        domains_dir = kb / "domains" / "auth"
-        domains_dir.mkdir(parents=True)
-        (domains_dir / "auth.md").write_text("""# Auth
-<!-- human-note -->
-This is a verified observation about the auth system.
-<!-- /human-note -->
-""")
+        # Add human-note blocks to the existing page
+        page = kb / "domains" / "auth" / "flows" / "login.md"
+        content = page.read_text()
+        content += "\n<!-- human-note -->\nThis is a verified observation about the auth flow.\n<!-- /human-note -->\n"
+        page.write_text(content)
 
         report = mod.migrate(kb, dry_run=False)
         assert report["human_notes_preserved"] >= 1
@@ -1066,47 +1159,66 @@ tags:
 # Test
 
 ## Purpose
-Test.
+Integration test project for validating the Kode Brain onboarding pipeline.
+Exercises state detection, gap mapping, and graph compilation end-to-end.
 
 ## Primary Users / Actors
-- Devs
+- Backend developers building and maintaining API services
+- Frontend developers consuming the REST and GraphQL endpoints
 
 ## Core Outcomes
-1. Works
+1. Users can authenticate using email and password credentials
+2. Users can create, read, update, and delete resources via the REST API
+3. All state changes produce audit events for compliance and debugging
 
 ## Scope
 ### In Scope
-- All
+- Authentication and session management with JWT tokens
+- Resource CRUD operations with validation and authorization
 
 ### Out of Scope
-- None
+- Payment processing and subscription management
+- Real-time WebSocket or Server-Sent Event endpoints
 
 ## Technology Summary
-TBD
+| Role | Tech |
+|---|---|
+| Frontend | React with Next.js |
+| Backend | Express on Node.js |
+| Database | PostgreSQL via Prisma |
+| Cache | Redis |
+| Queue | BullMQ |
 
 ## System Architecture
-Layered.
+Layered monolith following domain-driven design. Each domain owns its data
+and exposes capabilities through service boundaries. Infrastructure is
+containerized with Docker and deployed on Kubernetes.
 
 ## Domains
-- [[auth|Auth]]
+- [[auth|Auth domain]] — manages authentication and session lifecycle
 
 ## Runtime Entry Points
-- server
+- `npm start` — HTTP API server on port 3000
+- `npm run worker` — background job processor for queues
 
 ## External Systems
-None.
+- Stripe — payment processing for subscription billing
+- SendGrid — transactional email delivery for notifications
 
 ## System-wide Invariants
-None.
+- All state-changing operations must produce audit events with unique IDs
+- Session tokens expire after 24 hours of inactivity by default
 
 ## Current Risks
-None.
+- Auth module partially migrated from legacy session store to JWT tokens
+- Legacy admin panel still serves on /admin, migration planned Q4
 
 ## Active Changes
 None.
 
 ## Where To Start
-Here.
+Read this page for orientation, then pick a domain from the Domains section.
+Use /kodebrain reading-pack for focused context before touching any source code.
 """)
         domain_dir = kb_dir / "domains" / "auth"
         domain_dir.mkdir(parents=True)
@@ -1214,3 +1326,693 @@ Login capability.
         assert "src/index.ts" in fi
         # Both auth domain and auth-login capability reference this file
         assert len(fi["src/index.ts"]) >= 2
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Adversarial / regression tests for correctness fixes
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestPlaceholderDetection:
+    """Section quality grading — placeholder vs substantive."""
+
+    def _make_project_with_hub(self, tmp_path: Path, hub_content: str) -> Path:
+        proj = tmp_path / "test-project"
+        proj.mkdir()
+        (proj / "src").mkdir(parents=True, exist_ok=True)
+        (proj / "src" / "index.ts").write_text("export const x = 1")
+        kb_dir = proj / "docs" / "brain" / "projects" / "test"
+        kb_dir.mkdir(parents=True)
+        (kb_dir / "test.md").write_text(hub_content)
+        # Graph files
+        graph_dir = kb_dir / "graph"
+        graph_dir.mkdir(parents=True)
+        (graph_dir / "nodes.json").write_text("[]")
+        (graph_dir / "edges.json").write_text("[]")
+        (graph_dir / "file-index.json").write_text("{}")
+        (graph_dir / "file-hashes.json").write_text("{}")
+        # Architecture + domains
+        (kb_dir / "architecture").mkdir(parents=True, exist_ok=True)
+        (kb_dir / "architecture" / "overview.md").write_text("# Overview\n\nThe system has three services.")
+        (kb_dir / "domains" / "auth").mkdir(parents=True)
+        (kb_dir / "domains" / "auth" / "auth.md").write_text("# Auth")
+        return proj
+
+    def test_template_placeholder_detected(self, tmp_path: Path) -> None:
+        mod = _load_script(_PROJECT_STATE_PATH)
+        proj = self._make_project_with_hub(tmp_path, """---
+id: test
+type: project
+status: active
+confidence: supported
+provenance: human
+knowledge_role: intent
+project: test
+source_files: []
+last_updated: "2026-08-07"
+tags:
+  - type/project
+  - status/active
+---
+
+# Test
+
+## Purpose
+{{What this project is for}}
+
+## Primary Users / Actors
+TBD
+
+## Core Outcomes
+...
+
+## Scope
+## Technology Summary
+## System Architecture
+## Domains
+## Runtime Entry Points
+## External Systems
+## System-wide Invariants
+## Current Risks / Legacy / Migration
+## Active Changes
+## Where To Start
+""")
+        result = mod.classify(proj)
+        hub = result["hub_sections_found"]
+        # Template variables → placeholder
+        assert hub["purpose"] == "placeholder"
+        # TBD → placeholder
+        assert hub["actors"] == "placeholder"
+        # Bare "..." → placeholder
+        assert hub["core_outcomes"] == "placeholder"
+
+    def test_substantive_section_detected(self, tmp_path: Path) -> None:
+        mod = _load_script(_PROJECT_STATE_PATH)
+        proj = self._make_project_with_hub(tmp_path, """---
+id: test
+type: project
+status: active
+confidence: supported
+provenance: human
+knowledge_role: intent
+project: test
+source_files: []
+last_updated: "2026-08-07"
+tags:
+  - type/project
+  - status/active
+---
+
+# Test
+
+## Purpose
+This project provides authentication and authorization services for the
+entire platform ecosystem including web, mobile, and API clients.
+
+## Primary Users / Actors
+- End users logging in via web and mobile applications
+- Third-party developers using the OAuth API
+- Internal admin operators managing user permissions
+
+## Core Outcomes
+1. Users can authenticate with email/password, SSO, and passkeys
+2. Session tokens are issued with configurable TTL and refresh policies
+3. Audit events are emitted for all authentication state changes
+4. Rate limiting prevents brute-force attacks on login endpoints
+
+## Scope
+### In Scope
+- Authentication
+### Out of Scope
+- Billing
+
+## Technology Summary
+React + Express + PostgreSQL
+
+## System Architecture
+Layered monolith with domain-driven design.
+
+## Domains
+- [[auth|Auth]]
+- [[users|Users]]
+
+## Runtime Entry Points
+- `npm start` — HTTP server
+
+## External Systems
+- Stripe for billing
+
+## System-wide Invariants
+- All writes are idempotent
+
+## Current Risks / Legacy / Migration
+None.
+
+## Active Changes
+None.
+
+## Where To Start
+Read this page first.
+""")
+        result = mod.classify(proj)
+        hub = result["hub_sections_found"]
+        assert hub["purpose"] == "substantive"
+        assert hub["actors"] == "substantive"
+        # Should NOT be placeholder despite "..." not being content
+        assert hub["core_outcomes"] in ("substantive", "partial")
+
+    def test_partial_kb_with_placeholders(self, tmp_path: Path) -> None:
+        """A KB with only template placeholders should be partial_kb, not onboarded."""
+        mod = _load_script(_PROJECT_STATE_PATH)
+        proj = self._make_project_with_hub(tmp_path, """---
+id: test
+type: project
+status: active
+confidence: supported
+provenance: human
+knowledge_role: intent
+project: test
+source_files: []
+last_updated: "2026-08-07"
+tags:
+  - type/project
+  - status/active
+---
+
+# Test
+
+## Purpose
+{{What this project is for}}
+
+## Primary Users / Actors
+
+## Core Outcomes
+
+## Scope
+## Technology Summary
+## System Architecture
+## Domains
+## Runtime Entry Points
+## External Systems
+## System-wide Invariants
+## Current Risks / Legacy / Migration
+## Active Changes
+## Where To Start
+""")
+        result = mod.classify(proj)
+        assert result["state"] == "partial_kb"
+
+
+class TestIgnoreDirFiltering:
+    """Source counting must skip node_modules, dist, vendor, etc."""
+
+    def test_skips_node_modules(self, tmp_path: Path) -> None:
+        mod = _load_script(_PROJECT_STATE_PATH)
+        proj = tmp_path / "test-project"
+        proj.mkdir()
+        (proj / "node_modules" / "lodash").mkdir(parents=True, exist_ok=True)
+        (proj / "node_modules" / "lodash" / "index.js").write_text("module.exports = {}")
+        (proj / "src").mkdir(parents=True, exist_ok=True)
+        (proj / "src" / "index.ts").write_text("export const x = 1")
+
+        count = mod._count_source_files(proj)
+        assert count == 1  # only src/index.ts, not the node_modules file
+
+    def test_skips_dist_and_build(self, tmp_path: Path) -> None:
+        mod = _load_script(_PROJECT_STATE_PATH)
+        proj = tmp_path / "test-project"
+        proj.mkdir()
+        (proj / "dist").mkdir(parents=True, exist_ok=True)
+        (proj / "dist" / "bundle.js").write_text("(()=>{})()")
+        (proj / "build").mkdir(parents=True, exist_ok=True)
+        (proj / "build" / "output.js").write_text("// built")
+        (proj / "src").mkdir(parents=True, exist_ok=True)
+        (proj / "src" / "main.ts").write_text("export {}")
+
+        count = mod._count_source_files(proj)
+        assert count == 1  # only src/main.ts
+
+    def test_skips_vendor_and_pycache(self, tmp_path: Path) -> None:
+        mod = _load_script(_PROJECT_STATE_PATH)
+        proj = tmp_path / "test-project"
+        proj.mkdir()
+        vendor_lib = proj / "vendor" / "lib"
+        vendor_lib.mkdir(parents=True)
+        (vendor_lib / "lib.go").write_text("package lib")
+        pycache = proj / "__pycache__"
+        pycache.mkdir(parents=True)
+        (pycache / "mod.cpython-312.pyc").write_text("")
+        (proj / "main.go").write_text("package main")
+
+        count = mod._count_source_files(proj)
+        assert count == 1  # only main.go
+
+
+class TestHashBasedStaleness:
+    """Staleness must use file-hashes.json hash comparison, not mtime."""
+
+    def test_stale_when_hash_differs(self, tmp_path: Path) -> None:
+        mod = _load_script(_PROJECT_STATE_PATH)
+        proj = tmp_path / "test-project"
+        proj.mkdir()
+        # Create a source file
+        src_file = proj / "src" / "index.ts"
+        src_file.parent.mkdir(parents=True)
+        src_file.write_text("export const x = 1")
+
+        # Create KB with a hash that doesn't match
+        kb_dir = proj / "docs" / "brain" / "projects" / "test"
+        kb_dir.mkdir(parents=True)
+        (kb_dir / "test.md").write_text("""---
+id: test
+type: project
+status: active
+confidence: supported
+provenance: human
+knowledge_role: intent
+project: test
+source_files: []
+last_updated: "2026-08-07"
+tags: []
+---
+
+# Test
+
+## Purpose
+Test project that validates the Kode Brain onboarding pipeline end-to-end.
+It exercises state detection, gap mapping, and graph compilation reliably.
+
+## Primary Users / Actors
+- Backend developers building API services for the platform
+
+## Core Outcomes
+1. Users can authenticate and receive session tokens securely
+2. Users can create and manage resources through the REST API
+
+## Scope
+### In Scope
+- Authentication and session management
+### Out of Scope
+- Payment processing and billing
+
+## Technology Summary
+React with Next.js frontend and Express backend.
+
+## System Architecture
+Layered monolith following domain-driven design principles.
+
+## Domains
+- [[auth|Auth domain]]
+
+## Runtime Entry Points
+- `npm start` — HTTP server on port 3000
+
+## External Systems
+- Stripe for payment processing
+
+## System-wide Invariants
+- All writes are idempotent with retry support
+
+## Current Risks / Legacy / Migration
+None at this time.
+
+## Active Changes
+None.
+
+## Where To Start
+Read this page, then pick a domain from the Domains section.
+""")
+        # Architecture
+        (kb_dir / "architecture").mkdir(parents=True, exist_ok=True)
+        (kb_dir / "architecture" / "overview.md").write_text("# Overview\n\nThe system consists of three main services.")
+        (kb_dir / "architecture" / "technology.md").write_text("# Technology\n\nTypeScript, Express, PostgreSQL.")
+        (kb_dir / "domains" / "auth").mkdir(parents=True, exist_ok=True)
+        (kb_dir / "domains" / "auth" / "auth.md").write_text("# Auth\n\nHandles authentication.")
+        # Graph
+        graph_dir = kb_dir / "graph"
+        graph_dir.mkdir(parents=True, exist_ok=True)
+        (graph_dir / "nodes.json").write_text("[]")
+        (graph_dir / "edges.json").write_text("[]")
+        (graph_dir / "file-index.json").write_text("{}")
+        # Hash file with WRONG hash
+        (graph_dir / "file-hashes.json").write_text(
+            json.dumps({"src/index.ts": "0000000000000000000000000000000000000000000000000000000000000000"})
+        )
+
+        result = mod.classify(proj)
+        assert result["state"] == "stale_kb"
+
+    def test_not_stale_when_hash_matches(self, tmp_path: Path) -> None:
+        mod = _load_script(_PROJECT_STATE_PATH)
+        proj = tmp_path / "test-project"
+        proj.mkdir()
+        src_file = proj / "src" / "index.ts"
+        src_file.parent.mkdir(parents=True)
+        src_file.write_text("export const x = 1")
+
+        import hashlib
+        real_hash = hashlib.sha256(src_file.read_bytes()).hexdigest()
+
+        kb_dir = proj / "docs" / "brain" / "projects" / "test"
+        kb_dir.mkdir(parents=True)
+        (kb_dir / "test.md").write_text("""---
+id: test
+type: project
+status: active
+confidence: supported
+provenance: human
+knowledge_role: intent
+project: test
+source_files: []
+last_updated: "2026-08-07"
+tags: []
+---
+
+# Test
+
+## Purpose
+Test project that validates the Kode Brain onboarding pipeline end-to-end.
+It exercises state detection, gap mapping, and graph compilation reliably.
+
+## Primary Users / Actors
+- Backend developers building API services for the platform
+
+## Core Outcomes
+1. Users can authenticate and receive session tokens securely
+2. Users can create and manage resources through the REST API
+
+## Scope
+### In Scope
+- Authentication and session management
+### Out of Scope
+- Payment processing and billing
+
+## Technology Summary
+React with Next.js frontend and Express backend.
+
+## System Architecture
+Layered monolith following domain-driven design principles.
+
+## Domains
+- [[auth|Auth domain]]
+
+## Runtime Entry Points
+- `npm start` — HTTP server on port 3000
+
+## External Systems
+- Stripe for payment processing
+
+## System-wide Invariants
+- All writes are idempotent with retry support
+
+## Current Risks / Legacy / Migration
+None at this time.
+
+## Active Changes
+None.
+
+## Where To Start
+Read this page, then pick a domain from the Domains section.
+""")
+        (kb_dir / "architecture").mkdir(parents=True, exist_ok=True)
+        (kb_dir / "architecture" / "overview.md").write_text("# Overview\n\nThe system has several components.")
+        (kb_dir / "architecture" / "technology.md").write_text("# Technology\n\nTypeScript, PostgreSQL, Redis.")
+        (kb_dir / "domains" / "auth").mkdir(parents=True, exist_ok=True)
+        (kb_dir / "domains" / "auth" / "auth.md").write_text("# Auth\n\nHandles authentication and authorization.")
+        graph_dir = kb_dir / "graph"
+        graph_dir.mkdir(parents=True, exist_ok=True)
+        (graph_dir / "nodes.json").write_text("[]")
+        (graph_dir / "edges.json").write_text("[]")
+        (graph_dir / "file-index.json").write_text("{}")
+        (graph_dir / "file-hashes.json").write_text(
+            json.dumps({"src/index.ts": real_hash})
+        )
+
+        result = mod.classify(proj)
+        assert result["state"] == "onboarded"
+
+
+class TestSectionAwareEdges:
+    """Edges must derive relationship from section context, not just node types."""
+
+    def _make_kb(self, tmp_path: Path, pages: list[tuple[str, str]]) -> Path:
+        kb_dir = tmp_path / "docs" / "brain" / "projects" / "test"
+        kb_dir.mkdir(parents=True)
+        for rel_path, content in pages:
+            full = kb_dir / rel_path
+            full.parent.mkdir(parents=True, exist_ok=True)
+            full.write_text(content, encoding="utf-8")
+        return kb_dir
+
+    def test_used_by_reverses_direction(self, tmp_path: Path) -> None:
+        """'## Used By' section should create depends_on from the linked node TO source."""
+        mod = _load_script(_COMPILE_GRAPH_PATH)
+        kb = self._make_kb(tmp_path, [
+            ("domains/orders/orders.md", """---
+id: orders
+type: domain
+status: active
+confidence: supported
+provenance: source_code
+knowledge_role: observed
+project: test
+domain: orders
+source_files: []
+last_updated: "2026-08-07"
+tags:
+  - type/domain
+  - domain/orders
+  - status/active
+---
+
+# Orders
+
+## Depends On
+- [[payments|Payments]]
+
+## Used By
+- [[admin|Admin]]
+"""),
+            ("domains/payments/payments.md", """---
+id: payments
+type: domain
+status: active
+confidence: supported
+provenance: source_code
+knowledge_role: observed
+project: test
+domain: payments
+source_files: []
+last_updated: "2026-08-07"
+tags:
+  - type/domain
+  - domain/payments
+  - status/active
+---
+
+# Payments
+"""),
+            ("domains/admin/admin.md", """---
+id: admin
+type: domain
+status: active
+confidence: supported
+provenance: source_code
+knowledge_role: observed
+project: test
+domain: admin
+source_files: []
+last_updated: "2026-08-07"
+tags:
+  - type/domain
+  - domain/admin
+  - status/active
+---
+
+# Admin
+"""),
+        ])
+        result = mod.compile_graph(kb)
+        edges = {(e["from"], e["to"], e["type"]) for e in result["edges"]}
+
+        # orders → payments : depends_on (Depends On section, forward)
+        assert ("orders", "payments", "depends_on") in edges
+        # admin → orders : depends_on (Used By section, reversed)
+        assert ("admin", "orders", "depends_on") in edges
+        # Should NOT have orders → admin (wrong direction)
+        assert ("orders", "admin", "depends_on") not in edges
+
+    def test_risks_section_creates_risky_for(self, tmp_path: Path) -> None:
+        mod = _load_script(_COMPILE_GRAPH_PATH)
+        kb = self._make_kb(tmp_path, [
+            ("domains/auth/auth.md", """---
+id: auth
+type: domain
+status: active
+confidence: supported
+provenance: source_code
+knowledge_role: observed
+project: test
+domain: auth
+source_files: []
+last_updated: "2026-08-07"
+tags:
+  - type/domain
+  - domain/auth
+  - status/active
+---
+
+# Auth
+
+## Risks
+- [[auth-session-risk|Session risk]]
+"""),
+            ("domains/auth/risks/auth-session-risk.md", """---
+id: auth-session-risk
+type: caveat
+status: needs_review
+confidence: supported
+provenance: source_code
+knowledge_role: observed
+project: test
+domain: auth
+source_files: []
+last_updated: "2026-08-07"
+severity: high
+tags:
+  - type/risk
+  - domain/auth
+  - status/needs_review
+---
+
+# Session Risk
+
+## Affects
+- [[auth-login|Login]]
+"""),
+            ("domains/auth/capabilities/auth-login.md", """---
+id: auth-login
+type: capability
+status: active
+confidence: supported
+provenance: source_code
+knowledge_role: observed
+project: test
+domain: auth
+source_files: []
+last_updated: "2026-08-07"
+tags:
+  - type/capability
+  - domain/auth
+  - status/active
+---
+
+# Login
+"""),
+        ])
+        result = mod.compile_graph(kb)
+        edges = {(e["from"], e["to"], e["type"]) for e in result["edges"]}
+
+        # "## Risks" on auth page → risky_for from risk node to auth (reverse)
+        assert ("auth-session-risk", "auth", "risky_for") in edges
+        # "## Affects" on risk page → risky_for from risk to capability (forward)
+        assert ("auth-session-risk", "auth-login", "risky_for") in edges
+
+
+class TestArchitectureNodeType:
+    """Architecture pages must compile as 'architecture' type, not 'domain'."""
+
+    def test_architecture_not_domain(self, tmp_path: Path) -> None:
+        mod = _load_script(_COMPILE_GRAPH_PATH)
+        kb_dir = tmp_path / "docs" / "brain" / "projects" / "test"
+        kb_dir.mkdir(parents=True)
+        (kb_dir / "architecture").mkdir(parents=True, exist_ok=True)
+        (kb_dir / "architecture" / "overview.md").write_text("""---
+id: arch-overview
+type: architecture_overview
+status: active
+confidence: supported
+provenance: human
+knowledge_role: intent
+project: test
+source_files: []
+last_updated: "2026-08-07"
+tags: []
+---
+
+# Architecture Overview
+""")
+        (kb_dir / "architecture" / "technology.md").write_text("""---
+id: arch-technology
+type: architecture_technology
+status: active
+confidence: supported
+provenance: human
+knowledge_role: intent
+project: test
+source_files: []
+last_updated: "2026-08-07"
+tags: []
+---
+
+# Technology
+""")
+
+        result = mod.compile_graph(kb_dir)
+        types = {n["type"] for n in result["nodes"]}
+        assert "architecture" in types
+        assert "domain" not in types  # architecture pages should not be domains
+
+
+class TestStructuredManifestParsing:
+    """Inventory must parse structured manifests, not just substring match."""
+
+    def test_exact_package_match_from_json(self, tmp_path: Path) -> None:
+        mod = _load_script(_PROJECT_INVENTORY_PATH)
+        proj = tmp_path / "test-project"
+        proj.mkdir()
+        (proj / "package.json").write_text(json.dumps({
+            "name": "test",
+            "dependencies": {"express": "^4.0", "pg": "^8.0"},
+            "devDependencies": {"vitest": "^1.0", "typescript": "^5.0"},
+        }))
+
+        pkgs = mod._extract_package_names(proj)
+        assert "express" in pkgs
+        assert "pg" in pkgs
+        assert "vitest" in pkgs
+        assert "typescript" in pkgs
+
+    def test_exact_match_from_pyproject(self, tmp_path: Path) -> None:
+        mod = _load_script(_PROJECT_INVENTORY_PATH)
+        proj = tmp_path / "test-project"
+        proj.mkdir()
+        (proj / "pyproject.toml").write_text("""
+[project]
+name = "test"
+dependencies = ["fastapi", "uvicorn", "sqlalchemy>=2.0"]
+""")
+
+        pkgs = mod._extract_package_names(proj)
+        assert "fastapi" in pkgs
+        assert "uvicorn" in pkgs
+        assert "sqlalchemy" in pkgs
+
+    def test_exact_match_from_go_mod(self, tmp_path: Path) -> None:
+        mod = _load_script(_PROJECT_INVENTORY_PATH)
+        proj = tmp_path / "test-project"
+        proj.mkdir()
+        (proj / "go.mod").write_text("""module example.com/app
+
+go 1.21
+
+require (
+\tgithub.com/gin-gonic/gin v1.9.0
+\tgithub.com/jackc/pgx/v5 v5.5.0
+\tgithub.com/go-redis/redis/v8 v8.11.0
+)
+""")
+
+        pkgs = mod._extract_package_names(proj)
+        assert "gin" in pkgs or "gin-gonic" in pkgs
+        assert "pgx" in pkgs or "pgx/v5" in pkgs
+        assert "redis" in pkgs or "redis/v8" in pkgs

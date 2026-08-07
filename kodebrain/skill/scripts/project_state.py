@@ -22,7 +22,9 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -97,7 +99,11 @@ def _count_source_files(root: Path) -> int:
     count = 0
     try:
         for ext in _SOURCE_EXTS:
-            for _ in root.rglob(f"*{ext}"):
+            for p in root.rglob(f"*{ext}"):
+                # Skip files in ignored directories
+                parts = set(p.relative_to(root).parts[:-1])
+                if parts & _IGNORE_DIRS:
+                    continue
                 count += 1
                 if count > 500:
                     return count
@@ -162,8 +168,57 @@ def _detect_kb_version(kb_dir: Path) -> str | None:
     return None
 
 
-def _read_project_hub_fields(kb_dir: Path) -> dict[str, bool]:
-    """Check which sections exist in the project hub page."""
+def _section_quality(content: str, heading: str) -> str:
+    """
+    Grade a section's content quality.
+
+    Returns: missing | placeholder | partial | substantive
+    """
+    # Find the heading and extract content until next heading
+    pattern = re.compile(rf"^{re.escape(heading)}.*$", re.MULTILINE)
+    m = pattern.search(content)
+    if not m:
+        return "missing"
+
+    start = m.end()
+    # Find next heading at same level (##) or higher (#)
+    next_heading = re.compile(r"^#{1,2}\s+", re.MULTILINE)
+    nm = next_heading.search(content, start)
+    section_body = content[start:nm.start()] if nm else content[start:]
+    section_body = section_body.strip()
+
+    if not section_body:
+        return "placeholder"
+
+    # Detect template placeholders
+    placeholder_signals = [
+        "{{", "}}",            # template variables
+        "TBD", "TODO",          # explicit unknowns
+        "tbd", "todo",
+        "...",                   # trailing ellipsis with no content
+    ]
+    # Only flag as placeholder if these dominate the content
+    stripped = section_body.replace("\n", " ").strip()
+    if any(s in stripped for s in placeholder_signals) and len(stripped) < 80:
+        return "placeholder"
+
+    # Detect genuinely empty or whitespace-only
+    if len(section_body) < 20:
+        return "placeholder"
+
+    # Partial: has some content but under 100 chars (likely incomplete)
+    if len(section_body) < 100:
+        return "partial"
+
+    return "substantive"
+
+
+def _read_project_hub_sections(kb_dir: Path) -> dict[str, str]:
+    """
+    Check which sections exist in the project hub page and their quality.
+
+    Returns dict of section_key → missing | placeholder | partial | substantive.
+    """
     project_md = None
     for md in kb_dir.glob("*.md"):
         project_md = md
@@ -176,21 +231,38 @@ def _read_project_hub_fields(kb_dir: Path) -> dict[str, bool]:
     except OSError:
         return {}
 
-    checks = {
-        "purpose": "## Purpose" in content,
-        "actors": "## Primary Users" in content or "## Actors" in content,
-        "core_outcomes": "## Core Outcomes" in content,
-        "scope": "## Scope" in content,
-        "technology": "## Technology Summary" in content,
-        "architecture": "## System Architecture" in content,
-        "runtime": "## Runtime Entry Points" in content,
-        "external_integrations": "## External Systems" in content or "## Integrations" in content,
-        "domains": "## Domains" in content,
-        "invariants": "## System-wide Invariants" in content or "## Invariants" in content,
-        "legacy_migration": "## Current Risks" in content or "## Legacy" in content,
-        "active_changes": "## Active Changes" in content,
+    headings = {
+        "purpose": "## Purpose",
+        "actors": "## Primary Users",
+        "core_outcomes": "## Core Outcomes",
+        "scope": "## Scope",
+        "technology": "## Technology Summary",
+        "architecture": "## System Architecture",
+        "runtime": "## Runtime Entry Points",
+        "external_integrations": "## External Systems",
+        "domains": "## Domains",
+        "invariants": "## System-wide Invariants",
+        "legacy_migration": "## Current Risks",
+        "active_changes": "## Active Changes",
     }
-    return checks
+
+    result: dict[str, str] = {}
+    for key, heading in headings.items():
+        quality = _section_quality(content, heading)
+        # Fallback: try alternate heading names
+        if quality == "missing":
+            alt_headings = {
+                "actors": "## Actors",
+                "invariants": "## Invariants",
+                "external_integrations": "## Integrations",
+                "legacy_migration": "## Legacy",
+                "runtime": "## Entry Points",
+            }
+            if key in alt_headings:
+                quality = _section_quality(content, alt_headings[key])
+        result[key] = quality
+
+    return result
 
 
 def _build_gap_map(root: Path, kb_dir: Path | None) -> dict[str, Any]:
@@ -208,7 +280,7 @@ def _build_gap_map(root: Path, kb_dir: Path | None) -> dict[str, Any]:
         return gaps
 
     # Check project hub sections
-    hub_sections = _read_project_hub_fields(kb_dir)
+    hub_sections = _read_project_hub_sections(kb_dir)
 
     # Map hub sections to gap dimensions
     section_to_dim = {
@@ -226,10 +298,16 @@ def _build_gap_map(root: Path, kb_dir: Path | None) -> dict[str, Any]:
     }
 
     for section, dim in section_to_dim.items():
-        if hub_sections.get(section):
-            gaps[dim]["status"] = "complete"
+        quality = hub_sections.get(section, "missing")
+        if quality != "missing":
+            gaps[dim]["status"] = quality
             gaps[dim]["source"] = "project_hub"
-            gaps[dim]["detail"] = f"Section '{section}' present in project hub"
+            if quality == "placeholder":
+                gaps[dim]["detail"] = f"Section '{section}' is a template placeholder — needs human input"
+            elif quality == "partial":
+                gaps[dim]["detail"] = f"Section '{section}' has minimal content — likely incomplete"
+            else:
+                gaps[dim]["detail"] = f"Section '{section}' present in project hub"
 
     # Check architecture files
     arch_files_present = 0
@@ -353,8 +431,11 @@ def classify(root: Path) -> dict[str, Any]:
         graph_present = sum(1 for gf in _GRAPH_FILES if _check_file(kb_dir, gf))
         arch_present = sum(1 for af in _ARCHITECTURE_FILES if _check_file(kb_dir, af))
 
-        hub_sections = _read_project_hub_fields(kb_dir)
-        filled_sections = sum(1 for v in hub_sections.values() if v)
+        hub_sections = _read_project_hub_sections(kb_dir)
+        substantive = sum(1 for v in hub_sections.values() if v == "substantive")
+        partial_count = sum(1 for v in hub_sections.values() if v == "partial")
+        placeholder_count = sum(1 for v in hub_sections.values() if v == "placeholder")
+        filled_sections = substantive + partial_count
         total_sections = len(hub_sections) if hub_sections else 12
 
         if not hub_exists:
@@ -363,7 +444,7 @@ def classify(root: Path) -> dict[str, Any]:
 
         elif filled_sections < total_sections * 0.5:
             state = "partial_kb"
-            reasons.append(f"project hub incomplete ({filled_sections}/{total_sections} sections)")
+            reasons.append(f"project hub incomplete ({substantive} substantive, {partial_count} partial, {placeholder_count} placeholders out of {total_sections} sections)")
 
         elif domain_count == 0:
             state = "partial_kb"
@@ -378,34 +459,37 @@ def classify(root: Path) -> dict[str, Any]:
             reasons.append(f"only {graph_present}/4 graph files present")
 
         else:
-            # Check staleness: compare node last_updated vs source file mtimes
+            # Check staleness: compare stored hashes vs current file hashes
             stale = False
-            nodes_json = kb_dir / "graph" / "nodes.json"
             hashes_json = kb_dir / "graph" / "file-hashes.json"
 
-            if nodes_json.exists() and hashes_json.exists():
+            if hashes_json.exists():
                 try:
-                    nodes_mtime = nodes_json.stat().st_mtime
-                    # Check if any source file is newer than nodes.json
-                    for ext in _SOURCE_EXTS:
-                        for sf in root.rglob(f"*{ext}"):
-                            try:
-                                if sf.stat().st_mtime > nodes_mtime + 86400:  # 1 day grace
-                                    stale = True
-                                    reasons.append(
-                                        f"source file {sf.relative_to(root)} modified after last graph compilation"
-                                    )
-                                    break
-                            except OSError:
-                                pass
-                        if stale:
+                    stored_hashes: dict[str, str] = json.loads(hashes_json.read_text())
+                    checked = 0
+                    for rel_path, stored_hash in stored_hashes.items():
+                        sf = root / rel_path
+                        if not sf.exists():
+                            stale = True
+                            reasons.append(f"tracked source file deleted: {rel_path}")
                             break
-                except OSError:
+                        try:
+                            current_hash = hashlib.sha256(sf.read_bytes()).hexdigest()
+                            if current_hash != stored_hash:
+                                stale = True
+                                reasons.append(f"source file changed: {rel_path}")
+                                break
+                        except OSError:
+                            pass
+                        checked += 1
+                        if checked >= 200:  # sample first 200 files
+                            break
+                except (json.JSONDecodeError, OSError):
                     pass
 
             if stale:
                 state = "stale_kb"
-                reasons.append("source files modified since last KB update")
+                reasons.append("stored file hashes don't match current source — KB may be stale")
             else:
                 state = "onboarded"
                 reasons.append("project hub complete with all required sections")
@@ -429,7 +513,7 @@ def classify(root: Path) -> dict[str, Any]:
         "project_hub_exists": bool(list(kb_dir.glob("*.md"))) if kb_dir else False,
         "graph_files_present": sum(1 for gf in _GRAPH_FILES if _check_file(kb_dir, gf)) if kb_dir else 0,
         "architecture_files_present": sum(1 for af in _ARCHITECTURE_FILES if _check_file(kb_dir, af)) if kb_dir else 0,
-        "hub_sections_found": _read_project_hub_fields(kb_dir) if kb_dir else {},
+        "hub_sections_found": _read_project_hub_sections(kb_dir) if kb_dir else {},
         "gap_map": gap_map,
     }
 

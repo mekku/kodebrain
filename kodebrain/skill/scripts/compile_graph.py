@@ -35,28 +35,46 @@ _FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 
 _WIKILINK_RE = re.compile(r"\[\[([^\]|#]+?)(?:\|[^\]]+?)?\]\]")
 
-# ── Edge type inference: (source_type, target_type) → edge_type ──────────────
+# ── Section → edge semantics ──────────────────────────────────────────────────
+# Each entry: (section_regex, edge_type, direction)
+# direction: "forward" = source→target, "reverse" = target→source
 
-_EDGE_RULES: dict[tuple[str, str], str] = {
+_SECTION_EDGE_RULES: list[tuple[re.Pattern, str, str]] = [
+    (re.compile(r"^Depends\s+On$", re.IGNORECASE), "depends_on", "forward"),
+    (re.compile(r"^Dependencies$", re.IGNORECASE), "depends_on", "forward"),
+    (re.compile(r"^Used\s+By$", re.IGNORECASE), "depends_on", "reverse"),
+    (re.compile(r"^Owns$", re.IGNORECASE), "contains", "forward"),
+    (re.compile(r"^Contains$", re.IGNORECASE), "contains", "forward"),
+    (re.compile(r"^Capabilities$", re.IGNORECASE), "contains", "forward"),
+    (re.compile(r"^Core\s+Flows$", re.IGNORECASE), "contains", "forward"),
+    (re.compile(r"^Key\s+Concepts$", re.IGNORECASE), "uses", "forward"),
+    (re.compile(r"^Related\s+Concepts$", re.IGNORECASE), "uses", "forward"),
+    (re.compile(r"^Related\s+Models$", re.IGNORECASE), "uses", "forward"),
+    (re.compile(r"^Risks$|^Known\s+Risks$", re.IGNORECASE), "risky_for", "reverse"),
+    (re.compile(r"^Affects$", re.IGNORECASE), "risky_for", "forward"),
+    (re.compile(r"^Implements$", re.IGNORECASE), "implements", "forward"),
+    (re.compile(r"^Replaces$", re.IGNORECASE), "replaces", "forward"),
+    (re.compile(r"^Replaced\s+By$", re.IGNORECASE), "replaced_by", "forward"),
+    (re.compile(r"^Part\s+Of$", re.IGNORECASE), "part_of_flow", "forward"),
+    (re.compile(r"^See\s+Also$", re.IGNORECASE), "related_to", "forward"),
+    (re.compile(r"^Where\s+It\s+Is\s+Used$|^Where\s+It\s+Appears$", re.IGNORECASE), "uses", "reverse"),
+]
+
+# Fallback: node-type-pair rules when section context is absent/ambiguous
+_EDGE_FALLBACK: dict[tuple[str, str], str] = {
     ("domain", "capability"): "contains",
     ("domain", "flow"): "contains",
     ("domain", "concept"): "contains",
     ("domain", "data_model"): "contains",
-    ("domain", "api"): "contains",
-    ("domain", "caveat"): "contains",
-    ("domain", "decision"): "contains",
     ("domain", "domain"): "depends_on",
     ("capability", "flow"): "part_of_flow",
     ("capability", "data_model"): "uses",
     ("capability", "concept"): "uses",
-    ("capability", "api"): "exposes",
     ("capability", "capability"): "uses",
     ("flow", "capability"): "implements",
     ("flow", "data_model"): "uses",
     ("flow", "concept"): "uses",
     ("flow", "flow"): "calls",
-    ("concept", "data_model"): "uses",
-    ("concept", "concept"): "related_to",
     ("caveat", "capability"): "risky_for",
     ("caveat", "flow"): "risky_for",
     ("caveat", "data_model"): "risky_for",
@@ -64,14 +82,22 @@ _EDGE_RULES: dict[tuple[str, str], str] = {
     ("decision", "capability"): "supported_by",
     ("decision", "concept"): "supported_by",
     ("decision", "flow"): "supported_by",
-    ("data_model", "data_model"): "related_to",
-    ("legacy_area", "capability"): "replaces",
-    ("migration_state", "capability"): "replaces",
 }
 
 
-def _infer_edge_type(source_type: str, target_type: str) -> str:
-    return _EDGE_RULES.get((source_type, target_type), "related_to")
+def _infer_edge_type_from_section(section_heading: str | None) -> tuple[str, str] | None:
+    """Return (edge_type, direction) from section heading, or None if unrecognized."""
+    if not section_heading:
+        return None
+    for pattern, edge_type, direction in _SECTION_EDGE_RULES:
+        if pattern.search(section_heading):
+            return (edge_type, direction)
+    return None
+
+
+def _infer_edge_type_fallback(source_type: str, target_type: str) -> str:
+    """Fallback edge type from node-type pair."""
+    return _EDGE_FALLBACK.get((source_type, target_type), "related_to")
 
 
 # ── Frontmatter parsing ──────────────────────────────────────────────────────
@@ -152,19 +178,40 @@ def _parse_frontmatter_full(text: str) -> tuple[dict[str, Any], str]:
     return fm, body
 
 
-# ── Wiki-link extraction ─────────────────────────────────────────────────────
+# ── Section-aware wiki-link extraction ────────────────────────────────────────
 
-def _extract_wikilinks(body: str) -> list[str]:
-    """Return deduplicated list of target node IDs from wiki-links in body."""
-    targets = _WIKILINK_RE.findall(body)
-    # Deduplicate while preserving order
+_HEADING_RE = re.compile(r"^(#{1,6})\s+(.+)$", re.MULTILINE)
+
+
+def _extract_wikilinks_with_sections(body: str) -> list[tuple[str, str | None]]:
+    """
+    Return list of (target_id, section_heading) for wiki-links in body.
+    section_heading is the nearest preceding heading, or None.
+    """
+    # Find all heading positions
+    headings: list[tuple[int, str]] = []  # (char_pos, heading_text)
+    for m in _HEADING_RE.finditer(body):
+        headings.append((m.start(), m.group(2).strip()))
+
+    # Find all wiki-links
+    result: list[tuple[str, str | None]] = []
     seen: set[str] = set()
-    result: list[str] = []
-    for t in targets:
-        t = t.strip()
-        if t and t not in seen:
-            seen.add(t)
-            result.append(t)
+    for m in _WIKILINK_RE.finditer(body):
+        target = m.group(1).strip()
+        if not target or target in seen:
+            continue
+        seen.add(target)
+
+        # Find nearest preceding heading
+        link_pos = m.start()
+        section: str | None = None
+        for pos, heading_text in reversed(headings):
+            if pos < link_pos:
+                section = heading_text
+                break
+
+        result.append((target, section))
+
     return result
 
 
@@ -230,12 +277,12 @@ def compile_graph(kb_dir: Path) -> dict[str, Any]:
         node_type = fm.get("type", "unknown")
         # Map template-specific types to canonical node types
         type_map = {
-            "architecture_overview": "domain",
-            "architecture_technology": "domain",
-            "architecture_runtime": "domain",
-            "architecture_data": "domain",
-            "architecture_deployment": "domain",
-            "architecture_integrations": "domain",
+            "architecture_overview": "architecture",
+            "architecture_technology": "architecture",
+            "architecture_runtime": "architecture",
+            "architecture_data": "architecture",
+            "architecture_deployment": "architecture",
+            "architecture_integrations": "architecture",
             "change": "decision",
         }
         node_type = type_map.get(node_type, node_type)
@@ -307,10 +354,9 @@ def compile_graph(kb_dir: Path) -> dict[str, Any]:
             if node_id not in file_index[sf]:
                 file_index[sf].append(node_id)
 
-        # ── Build edges from wiki-links ───────────────────────────────────────
-        targets = _extract_wikilinks(body)
-        source_type = node_type
-        for target_id in targets:
+        # ── Build edges from wiki-links (section-aware) ────────────────────────
+        wikilinks = _extract_wikilinks_with_sections(body)
+        for target_id, section_heading in wikilinks:
             edges.append({
                 "from": node_id,
                 "to": target_id,
@@ -318,10 +364,11 @@ def compile_graph(kb_dir: Path) -> dict[str, Any]:
                 "confidence": "inferred",
                 "provenance": "generated",
                 "label": "",
+                "section": section_heading,  # transient — used for type resolution
                 "last_updated": fm.get("last_updated", ""),
             })
 
-    # ── Second pass: resolve edge types using known node types ────────────────
+    # ── Second pass: resolve edge types from section context, fallback to types ─
     node_type_map: dict[str, str] = {n["id"]: n["type"] for n in nodes}
     orphan_targets: list[str] = []
 
@@ -332,9 +379,23 @@ def compile_graph(kb_dir: Path) -> dict[str, Any]:
             orphan_targets.append(target_id)
             edge["confidence"] = "needs_human_review"
             continue
+
         source_type = node_type_map.get(edge["from"], "unknown")
-        edge["type"] = _infer_edge_type(source_type, target_type)
-        edge["confidence"] = "supported" if source_type != "unknown" else "inferred"
+        section_heading = edge.pop("section", None)
+
+        # 1. Try section-context inference first
+        section_result = _infer_edge_type_from_section(section_heading)
+        if section_result is not None:
+            edge_type, direction = section_result
+            if direction == "reverse":
+                # Swap from/to: "Used By" means the linked node uses us
+                edge["from"], edge["to"] = edge["to"], edge["from"]
+            edge["type"] = edge_type
+            edge["confidence"] = "supported"
+        else:
+            # 2. Fall back to node-type-pair inference
+            edge["type"] = _infer_edge_type_fallback(source_type, target_type)
+            edge["confidence"] = "inferred"
 
     # Remove edges with orphan targets and warn
     edges = [e for e in edges if e["to"] in node_type_map]
