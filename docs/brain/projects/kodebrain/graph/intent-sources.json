@@ -1,0 +1,320 @@
+{
+  "scanned_at": "2026-08-07T13:50:29.014313+00:00",
+  "project_root": "/Users/mekku/Documents/projects/kb-builder",
+  "discovered": 17,
+  "confirmed": 1,
+  "draft_or_unknown": 11,
+  "historical": 5,
+  "pending_resolution": 16,
+  "accepted": 1,
+  "partial": 0,
+  "rejected": 0,
+  "pending_confirmation": true,
+  "sources": [
+    {
+      "path": "docs/design/agents.md",
+      "kind": "architecture_doc",
+      "status": "historical",
+      "authority": "high",
+      "requires_confirmation": false,
+      "resolution": {
+        "state": "pending",
+        "provenance": null,
+        "resolved_at": null
+      },
+      "last_modified": "2026-08-07T13:39:58+07:00",
+      "title": "",
+      "_file_hash": "06c1ab4613c5d1b7f3f78709e22e88511947fcf2ddfda8035d87478e194c15f3",
+      "covers_domains": [
+        "overview",
+        "boundaries",
+        "list"
+      ]
+    },
+    {
+      "path": "docs/design/implementation-plan-vnext.md",
+      "kind": "architecture_doc",
+      "status": "unknown",
+      "authority": "high",
+      "requires_confirmation": true,
+      "resolution": {
+        "state": "pending",
+        "provenance": null,
+        "resolved_at": null
+      },
+      "last_modified": "2026-08-07T14:34:57+07:00",
+      "title": "",
+      "_file_hash": "07e636b4cdb41b5082f83fa4fd229b71625108a5412e96224a149f97e9abaafd",
+      "covers_domains": []
+    },
+    {
+      "path": "docs/design/open-decisions.md",
+      "kind": "architecture_doc",
+      "status": "current",
+      "authority": "high",
+      "requires_confirmation": false,
+      "resolution": {
+        "state": "pending",
+        "provenance": null,
+        "resolved_at": null
+      },
+      "last_modified": "2026-08-07T13:39:58+07:00",
+      "title": "",
+      "_file_hash": "395cc02e5cb3eb664c512b45546029f2b3eb66c22695f70e72fe4406ba7859b6",
+      "covers_domains": []
+    },
+    {
+      "path": "docs/design/project-history.md",
+      "kind": "architecture_doc",
+      "status": "historical",
+      "authority": "high",
+      "requires_confirmation": false,
+      "resolution": {
+        "state": "pending",
+        "provenance": null,
+        "resolved_at": null
+      },
+      "last_modified": "2026-08-07T13:31:40+07:00",
+      "title": "",
+      "_file_hash": "12dff40363d8f1f4967da060741c4e6896bdfb119787a054ba11047e61a8d23b",
+      "covers_domains": []
+    },
+    {
+      "path": "docs/design/reviews/spec-authority-consolidation.md",
+      "kind": "architecture_doc",
+      "status": "unknown",
+      "authority": "high",
+      "requires_confirmation": true,
+      "resolution": {
+        "state": "pending",
+        "provenance": null,
+        "resolved_at": null
+      },
+      "last_modified": "2026-08-07T13:21:24+07:00",
+      "title": "",
+      "_file_hash": "7116fcc46c40c13327817c9cedbeba006ed16ef42bebb9a2642e044cac57ed60",
+      "covers_domains": []
+    },
+    {
+      "path": "docs/design/skills.md",
+      "kind": "architecture_doc",
+      "status": "historical",
+      "authority": "high",
+      "requires_confirmation": false,
+      "resolution": {
+        "state": "pending",
+        "provenance": null,
+        "resolved_at": null
+      },
+      "last_modified": "2026-08-07T13:47:32+07:00",
+      "title": "",
+      "_file_hash": "4754937936c97acbe73ea95d6f3990b12c80f100eab57059f301f7eb7e779acf",
+      "covers_domains": [
+        "name"
+      ]
+    },
+    {
+      "path": "docs/design/spec.md",
+      "kind": "architecture_doc",
+      "status": "unknown",
+      "authority": "high",
+      "requires_confirmation": true,
+      "resolution": {
+        "state": "pending",
+        "provenance": null,
+        "resolved_at": null
+      },
+      "last_modified": "2026-08-07T19:20:01+07:00",
+      "title": "",
+      "_file_hash": "330624a4756bddbcd8a8b3e16064eab7420867bc8545c67c35040cc5174f6893",
+      "covers_domains": [
+        "responsibilities"
+      ]
+    },
+    {
+      "path": "docs/design/taxonomy.md",
+      "kind": "architecture_doc",
+      "status": "historical",
+      "authority": "high",
+      "requires_confirmation": false,
+      "resolution": {
+        "state": "pending",
+        "provenance": null,
+        "resolved_at": null
+      },
+      "last_modified": "2026-08-07T13:39:58+07:00",
+      "title": "",
+      "_file_hash": "5e231ad0c8bfa40abb3dd14ddb4f85dbcd7683eebe6b8c1f39e5ed6ccbd9852c",
+      "covers_domains": [
+        "folders",
+        "node"
+      ]
+    },
+    {
+      "path": "docs/design/workflows.md",
+      "kind": "architecture_doc",
+      "status": "historical",
+      "authority": "high",
+      "requires_confirmation": false,
+      "resolution": {
+        "state": "pending",
+        "provenance": null,
+        "resolved_at": null
+      },
+      "last_modified": "2026-08-07T13:39:58+07:00",
+      "title": "",
+      "_file_hash": "ab4c4287d85d02fa67f0a7d40d8bda62849b08de44f6fd1cd92a6fdf5f2368fc",
+      "covers_domains": [
+        "boundaries",
+        "list",
+        "overview"
+      ]
+    },
+    {
+      "path": "docs/design/spec/governance.md",
+      "kind": "specification",
+      "status": "unknown",
+      "authority": "high",
+      "requires_confirmation": true,
+      "resolution": {
+        "state": "pending",
+        "provenance": null,
+        "resolved_at": null
+      },
+      "last_modified": "2026-08-07T19:20:01+07:00",
+      "title": "",
+      "_file_hash": "8d654831d5aa526bab2c354ee28e4e00e4f16dd6c6bc314cd272e40abf4815f3",
+      "covers_domains": [
+        "pages"
+      ]
+    },
+    {
+      "path": "docs/design/spec/history-model.md",
+      "kind": "specification",
+      "status": "unknown",
+      "authority": "high",
+      "requires_confirmation": true,
+      "resolution": {
+        "state": "pending",
+        "provenance": null,
+        "resolved_at": null
+      },
+      "last_modified": "2026-08-07T19:20:01+07:00",
+      "title": "",
+      "_file_hash": "dc809ab148e14ad3aa64b2ad0e590af289f4188be0b5f752119cfda53e1056d7",
+      "covers_domains": []
+    },
+    {
+      "path": "docs/design/spec/knowledge-model.md",
+      "kind": "specification",
+      "status": "unknown",
+      "authority": "high",
+      "requires_confirmation": true,
+      "resolution": {
+        "state": "pending",
+        "provenance": null,
+        "resolved_at": null
+      },
+      "last_modified": "2026-08-07T19:20:01+07:00",
+      "title": "",
+      "_file_hash": "f74ce42c3d9f79f222a192168fda60af2d9d547b4400a4c46c7cac4634f4086d",
+      "covers_domains": [
+        "map"
+      ]
+    },
+    {
+      "path": "docs/design/spec/onboard-validation-gate.md",
+      "kind": "specification",
+      "status": "unknown",
+      "authority": "high",
+      "requires_confirmation": true,
+      "resolution": {
+        "state": "pending",
+        "provenance": null,
+        "resolved_at": null
+      },
+      "last_modified": "2026-08-07T19:20:01+07:00",
+      "title": "",
+      "_file_hash": "1aee7e6fe8e6e24c50cb12c5486e055fb737ddb5d3dc4db635c48c9a5ea9504f",
+      "covers_domains": [
+        "hub"
+      ]
+    },
+    {
+      "path": "docs/design/spec/project-model.md",
+      "kind": "specification",
+      "status": "unknown",
+      "authority": "high",
+      "requires_confirmation": true,
+      "resolution": {
+        "state": "pending",
+        "provenance": null,
+        "resolved_at": null
+      },
+      "last_modified": "2026-08-07T13:39:58+07:00",
+      "title": "",
+      "_file_hash": "3852066e65298df69cfa28749084d6a02893dcdcf51892bb7d63b2701a921d5c",
+      "covers_domains": [
+        "contract",
+        "placement"
+      ]
+    },
+    {
+      "path": "docs/design/spec/workflow-model.md",
+      "kind": "specification",
+      "status": "unknown",
+      "authority": "high",
+      "requires_confirmation": true,
+      "resolution": {
+        "state": "pending",
+        "provenance": null,
+        "resolved_at": null
+      },
+      "last_modified": "2026-08-07T19:20:01+07:00",
+      "title": "",
+      "_file_hash": "fdae8ec89d61927b8de01a48b1d39c4e806166c52c733f86d705e92c2e5bf554",
+      "covers_domains": [
+        "boundaries",
+        "maps",
+        "Mapping",
+        "Contracts",
+        "responsibility"
+      ]
+    },
+    {
+      "path": "docs/specs/intent-source-inventory.md",
+      "kind": "specification",
+      "status": "draft",
+      "authority": "high",
+      "requires_confirmation": true,
+      "resolution": {
+        "state": "accepted",
+        "provenance": "human",
+        "resolved_at": "2026-08-07T13:50:28.702560+00:00"
+      },
+      "last_modified": "2026-08-07T20:23:51+07:00",
+      "title": "",
+      "_file_hash": "bd7d8085a0bc7322c2f6a61343955ade3c267bba63e2de870548f266170a7a7f",
+      "covers_domains": []
+    },
+    {
+      "path": "README.md",
+      "kind": "readme",
+      "status": "unknown",
+      "authority": "medium",
+      "requires_confirmation": true,
+      "resolution": {
+        "state": "pending",
+        "provenance": null,
+        "resolved_at": null
+      },
+      "last_modified": "2026-08-07T10:27:14+07:00",
+      "title": "",
+      "_file_hash": "8ae499a4ca6ca55b43b3a205fbaf1f1189003770ca225e11bfa99d608b07815f",
+      "covers_domains": [
+        "hub",
+        "slug"
+      ]
+    }
+  ]
+}
