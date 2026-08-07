@@ -1,7 +1,8 @@
 # Intent Source Inventory
 
-**Status:** DRAFT v0.1 — awaiting user confirmation
+**Status:** CURRENT — implemented
 **Created:** 2026-08-07
+**Updated:** 2026-08-07 (resolution state machine, validator gate, Gate 2 LLM comparison)
 **Domain:** kb-workflow (onboard), kb-substrate (harvest)
 
 ---
@@ -229,7 +230,8 @@ Never set `decision_date` to `recorded_at` when the actual decision date is unkn
 
 ## Benchmark — Two-Axis Coverage
 
-Replace single overall score with two dimensions:
+Replace single overall score with two dimensions. Intent coverage is derived from
+**resolution state** (human-confirmed), not document status:
 
 ```
 Implementation Coverage
@@ -239,8 +241,8 @@ Implementation Coverage
 
 Intent Coverage
   Intent documents discovered:  1
-  Confirmed / consumed:         0
-  Draft / pending:              1
+  Accepted (human-confirmed):   0  (0%)
+  Pending / deferred:           1
   🔴 — 1 intent doc not yet confirmed
 ```
 
@@ -248,22 +250,33 @@ Add to `run_benchmark()` output:
 
 ```json
 {
-  "implementation_coverage": {
-    "source_files_total": 39,
-    "source_files_mapped": 39,
-    "coverage_pct": 100.0
+  "coverage": {
+    "implementation_pct": 100.0,
+    "total_source_files": 39,
+    "mapped_files": 39,
+    "unmapped_files": 0
   },
   "intent_coverage": {
-    "intent_sources_discovered": 1,
-    "intent_sources_confirmed": 0,
-    "intent_sources_draft_or_unknown": 1,
-    "intent_sources_historical": 0,
-    "intent_coverage_pct": 0.0
+    "discovered": 1,
+    "document_status": {"current": 0, "draft": 1, "historical": 0, "unknown": 0},
+    "resolution": {"accepted": 0, "partial": 0, "rejected": 0, "pending": 1, "deferred": 0},
+    "accepted": 0,
+    "pending": 1,
+    "rejected": 0,
+    "pending_confirmation": true,
+    "coverage_pct": 0.0
   }
 }
 ```
 
-`intent_coverage_pct` = `confirmed / max(discovered, 1) * 100`.
+`intent_coverage_pct` = `resolution.accepted / max(discovered, 1) * 100`.
+
+**Resolution semantics:**
+- `accepted` — human confirmed this is authoritative intent
+- `rejected` — human or auto (historical docs) confirmed this is NOT current
+- `pending` — draft/unknown, needs human decision
+- `deferred` — human chose "decide later" (BLOCKING — counts as unresolved)
+- `partial` — human confirmed some sections current; BLOCKING unless `note` field present
 
 ## Regression Gates (3 cases from external dogfood)
 
@@ -292,20 +305,26 @@ implementation has no state field.
 **Must not:** invent a historical Decision + rationale.
 **May:** record Observed Architecture node; record Inferred Rationale marked `needs_review`.
 
-## Implementation Plan (sketch)
+## Implementation Plan
 
-| Phase | What | Where |
+| Phase | What | Status |
 |---|---|---|
-| 1 | `intent_inventory.py` — deterministic scan + status extraction | `kodebrain/skill/scripts/` |
-| 2 | `harvest.py --intent-sources` CLI flag | `kodebrain/skill/scripts/harvest.py` |
-| 3 | Update SKILL.md onboard steps: insert Intent Source Inventory as Step 2, renumber | `kodebrain/skill/SKILL.md` |
-| 4 | Decision provenance gate in onboard + update SKILL.md decision rules | SKILL.md |
-| 5 | Two-axis benchmark in `run_benchmark()` | `harvest.py` |
-| 6 | Adaptive interview template in onboard flow (1 question per unconfirmed source) | SKILL.md |
-| 7 | Regression gate acceptance criteria (manual dogfood verification) | `docs/specs/intent-source-inventory.md` (this doc) |
+| 1 | `intent_inventory.py` — deterministic scan + status extraction | ✅ `kodebrain/skill/scripts/intent_inventory.py` |
+| 2 | Reuse shared `frontmatter.py` parser (not flat inline parser) | ✅ |
+| 3 | Update SKILL.md onboard: Intent Source Inventory as Step 2, renumber steps | ✅ Steps 1-15 |
+| 4 | Decision provenance guard in `validate.py` (source-only decisions = ERROR) | ✅ Check 3 |
+| 5 | Two-axis benchmark in `run_benchmark()` (implementation + intent coverage) | ✅ `harvest.py` |
+| 6 | Adaptive interview with `--resolve` + `--resolve-note` CLI | ✅ |
+| 7 | Resolution state machine: auto-accept current, auto-reject historical, pending for draft/unknown | ✅ |
+| 8 | Resolution persistence: file hash change detection, carry-over on re-scan | ✅ `intent_inventory.py` |
+| 9 | Validator intent gate: Check 7, `BLOCKING_INCOMPLETE` severity | ✅ `validate.py` |
+| 10 | Gate 2: intent↔observed comparison (LLM-driven v1, Step 8 in onboard) | ✅ SKILL.md |
+| 11 | Scope: deferred + partial-without-note = BLOCKING; partial+note = resolved | ✅ |
+| 12 | Intent inventory woven into scan, review, and state detection commands | ✅ SKILL.md |
+| 13 | Regression tests: 15/15 passing (inventory + validate + decision + resolution + fixture) | ✅ `test/` |
 
 ## Open Questions
 
-- Should `intent-sources.json` be regenerated on every onboard, or only on first? (Lean: every onboard, but skip interview if sources unchanged and already confirmed)
-- Should `docs/brain/` itself be excluded from intent source scan to prevent self-referential loops? (Lean: yes — skip `docs/brain/**`)
+- Deterministic semantic comparison engine for Gate 2 (replacing LLM-driven v1)? Deferred — fixture ready in `test/fixtures/brownfield/`.
 - Claim-level provenance? Deferred. Page-level with `intent_sources`/`observed_sources` list is sufficient for now.
+- Should `docs/brain/` itself be excluded from intent source scan? ✅ Yes — in `SKIP_PREFIXES`.
