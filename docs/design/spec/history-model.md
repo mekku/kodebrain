@@ -22,7 +22,7 @@ Canonical owner for: the 4th Kode Brain question (HOW DID WE GET HERE?), semanti
 
 Project History is the semantic time axis — it answers **HOW DID WE GET HERE?**
 
-> **Boundary:** History owns the record schemas and temporal semantics of decisions, incidents, milestones, and completed changes. The active Change lifecycle (planned → in_progress → implemented → reconciled) is owned by [`workflow-model`](workflow-model.md). History delegates to Workflow for lifecycle state definitions and to [`project-model`](project-model.md) for project structure conventions.
+> **Boundary:** History owns the record schemas AND lifecycle semantics of decisions, incidents, milestones, and completed changes. The active Change process lifecycle (planned → in_progress → implemented → reconciled) is owned by [`workflow-model`](workflow-model.md) because Change is both a development process and a historical record. History owns the completed Change record. For project structure conventions, see [`project-model`](project-model.md).
 
 History records are **append-oriented**. Once recorded, they are not rewritten. If understanding changes, a new record supersedes the old one — the old record remains as evidence of the path taken.
 
@@ -54,6 +54,22 @@ supersedes:
 ```
 
 The compiler derives `superseded_by` on the old decision and sets its effective state to `superseded`. The old decision is never rewritten.
+
+### Decision Lifecycle
+
+| decision_state | Meaning |
+|---|---|
+| `active` | Current governing decision for this concern |
+| `superseded` | Replaced by a newer decision via lineage; preserved for historical trace |
+| `deprecated` | Intentionally retired without a direct replacement; the concern itself may no longer apply |
+
+### Incident Lifecycle
+
+| incident_state | Meaning |
+|---|---|
+| `ongoing` | Problem still active or unresolved |
+| `mitigated` | Immediate impact contained; root cause or permanent fix incomplete |
+| `resolved` | Incident concluded; resolution implemented and lesson captured |
 
 ## Generated Artifacts
 

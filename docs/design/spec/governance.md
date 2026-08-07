@@ -55,9 +55,9 @@ When a new question arises, route it to one canonical owner using this framework
 
 The boundary between Workflow and History:
 
-- **Workflow** owns active processes: when to create a change, what lifecycle states mean, how reconciliation works.
-- **History** owns the temporal record: what a completed change contains, how decisions lineage works, what incidents record.
-- History delegates lifecycle state definitions to Workflow (e.g., `change_state` values are defined in Workflow; History references them).
+- **Workflow** owns active development processes: when to create a change, how change lifecycle progresses (planned → in_progress → implemented → reconciled), how reconciliation works.
+- **History** owns temporal records AND their lifecycle semantics: what a completed change contains, Decision lifecycle (active/superseded/deprecated), Incident lifecycle (ongoing/mitigated/resolved), lineage derivation, event generation, retrieval.
+- Workflow owns Change lifecycle because Change is both a development process AND a historical record. History owns the completed Change record. History owns Decision and Incident lifecycle semantics fully.
 - Neither spec independently redefines record semantics owned by the other.
 
 ---

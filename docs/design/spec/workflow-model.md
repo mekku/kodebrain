@@ -126,17 +126,17 @@ Regenerate timeline + events
 
 Generic KB `status` describes knowledge quality (`active`, `stale`, `needs_review`). Lifecycle state is separate and type-specific.
 
-This spec defines the **separation principle**. Specific lifecycle values are owned by the spec that owns each record type:
+The canonical record owner defines that record's lifecycle semantics:
 
-| Record type | Lifecycle field | Owned by | Values |
-|---|---|---|---|
-| Change | `change_state` | Workflow (this spec) | planned, in_progress, implemented, reconciled |
-| Incident | `incident_state` | [`history-model`](history-model.md) | ongoing, mitigated, resolved |
-| Decision | `decision_state` | [`history-model`](history-model.md) | active, superseded, deprecated |
+| Record type | Lifecycle field | Canonical owner |
+|---|---|---|
+| Change | `change_state` | Workflow (this spec) — [Change Lifecycle](#change-lifecycle-states) |
+| Incident | `incident_state` | [`history-model`](history-model.md) — Incident Lifecycle |
+| Decision | `decision_state` | [`history-model`](history-model.md) — Decision Lifecycle |
 
-A completed change has `status: active` (knowledge is valid) and `change_state: reconciled` (lifecycle is complete). This separation is enforced in `schema/node.schema.json` and all templates.
+Workflow owns Change lifecycle because Change is both an active development process and a historical record. History owns Decision and Incident lifecycle semantics.
 
-For incident lifecycle semantics, see [`history-model.md` §Incidents](history-model.md). For decision lineage and state transitions, see [`history-model.md` §Decision Lineage](history-model.md).
+This separation is enforced in `schema/node.schema.json` and all templates.
 
 ---
 
