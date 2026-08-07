@@ -82,6 +82,14 @@ _EDGE_FALLBACK: dict[tuple[str, str], str] = {
     ("decision", "capability"): "supported_by",
     ("decision", "concept"): "supported_by",
     ("decision", "flow"): "supported_by",
+    ("incident", "capability"): "risky_for",
+    ("incident", "flow"): "risky_for",
+    ("incident", "domain"): "risky_for",
+    ("incident", "decision"): "related_to",
+    ("incident", "incident"): "related_to",
+    ("milestone", "domain"): "related_to",
+    ("milestone", "capability"): "related_to",
+    ("milestone", "decision"): "supported_by",
 }
 
 

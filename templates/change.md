@@ -1,16 +1,26 @@
 ---
+id: {{YYYY-MM-DD}}-{{change-slug}}
 type: change
 project: {{project-slug}}
 status: planned
+outcome: null
 confidence: verified
 provenance: human
 knowledge_role: intent
+started_at: "{{YYYY-MM-DD}}"
+completed_at: null
 last_updated: {{date}}
+tags:
+  - type/change
+  - status/planned
 ---
 
 # Change: {{Short Change Title}}
 
 **Status:** planned | in_progress | implemented | reconciled
+**Outcome:** success | partial | abandoned | rolled_back
+**Started:** {{YYYY-MM-DD}}
+**Completed:** {{date or "—"}}
 
 ## Intent
 
@@ -53,6 +63,28 @@ last_updated: {{date}}
 <!-- Filled in after implementation -->
 
 - `{{commit}}` — {{what was done}}
+
+## Outcome
+
+<!-- Filled in after reconciliation -->
+
+{{What actually happened? Compare intent vs result.}}
+
+## Deviations From Plan
+
+<!-- What changed from the original intent during implementation? -->
+
+## Lessons Learned
+
+<!-- What did this change teach us? What would we do differently? -->
+
+## Follow-ups
+
+<!-- What work remains that this change didn't address? -->
+
+## Regressions / Problems Introduced
+
+<!-- Did this change cause any issues later? Link to incidents if relevant. -->
 
 ## Open Questions
 

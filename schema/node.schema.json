@@ -32,7 +32,9 @@
         "decision",
         "caveat",
         "legacy_area",
-        "migration_state"
+        "migration_state",
+        "incident",
+        "milestone"
       ]
     },
     "name": {

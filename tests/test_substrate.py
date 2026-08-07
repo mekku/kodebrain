@@ -2016,3 +2016,237 @@ require (
         assert "gin" in pkgs or "gin-gonic" in pkgs
         assert "pgx" in pkgs or "pgx/v5" in pkgs
         assert "redis" in pkgs or "redis/v8" in pkgs
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Project History — timeline, incidents, milestones
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_TIMELINE_PATH = _SCRIPTS_DIR / "timeline.py"
+
+
+class TestTimeline:
+    """Timeline generation from history records."""
+
+    def _make_kb_with_history(self, tmp_path: Path) -> Path:
+        kb_dir = tmp_path / "docs" / "brain" / "projects" / "test"
+        kb_dir.mkdir(parents=True)
+
+        # Decision
+        dec_dir = kb_dir / "decisions"
+        dec_dir.mkdir(parents=True)
+        (dec_dir / "2026-03-15-use-redis.md").write_text("""---
+id: infra-2026-03-15-use-redis
+type: decision
+decision_state: superseded
+date: "2026-03-15"
+superseded_by:
+  - infra-2026-08-01-use-valkey
+---
+
+# Decision: Use Redis for caching
+""")
+        (dec_dir / "2026-08-01-use-valkey.md").write_text("""---
+id: infra-2026-08-01-use-valkey
+type: decision
+decision_state: active
+date: "2026-08-01"
+supersedes:
+  - infra-2026-03-15-use-redis
+---
+
+# Decision: Migrate to Valkey
+""")
+
+        # Completed change
+        changes_dir = kb_dir / "changes" / "completed"
+        changes_dir.mkdir(parents=True)
+        (changes_dir / "2026-07-20-migrate-sessions.md").write_text("""---
+id: 2026-07-20-migrate-sessions
+type: change
+status: reconciled
+outcome: success
+started_at: "2026-07-15"
+completed_at: "2026-07-20"
+---
+
+# Change: Migrate sessions to JWT
+""")
+
+        # Incident
+        inc_dir = kb_dir / "incidents"
+        inc_dir.mkdir(parents=True)
+        (inc_dir / "2026-06-10-duplicate-capture.md").write_text("""---
+id: payment-2026-06-10-duplicate-capture
+type: incident
+severity: high
+status: resolved
+started_at: "2026-06-10"
+resolved_at: "2026-06-11"
+domain: payment
+---
+
+# Incident: Duplicate Payment Capture
+""")
+
+        # Milestone
+        ms_dir = kb_dir / "milestones"
+        ms_dir.mkdir(parents=True)
+        (ms_dir / "2026-04-01-mvp-launch.md").write_text("""---
+id: 2026-04-01-mvp-launch
+type: milestone
+date: "2026-04-01"
+significance: product
+---
+
+# Milestone: MVP Launched
+""")
+
+        return kb_dir
+
+    def test_collects_all_record_types(self, tmp_path: Path) -> None:
+        mod = _load_script(_TIMELINE_PATH)
+        kb = self._make_kb_with_history(tmp_path)
+        records = mod._collect_records(kb)
+        types = {r["type"] for r in records}
+        assert "Decision" in types
+        assert "Change" in types
+        assert "Incident" in types
+        assert "Milestone" in types
+
+    def test_sorts_by_date_descending(self, tmp_path: Path) -> None:
+        mod = _load_script(_TIMELINE_PATH)
+        kb = self._make_kb_with_history(tmp_path)
+        records = mod._collect_records(kb)
+        dates = [r["date"] for r in records if r["date"]]
+        assert dates == sorted(dates, reverse=True)
+
+    def test_generates_timeline_markdown(self, tmp_path: Path) -> None:
+        mod = _load_script(_TIMELINE_PATH)
+        kb = self._make_kb_with_history(tmp_path)
+        timeline = mod.generate_timeline(kb)
+        assert "# Project Timeline" in timeline
+        assert "## 2026" in timeline
+        assert "Duplicate Payment Capture" in timeline
+        assert "MVP Launched" in timeline
+        assert "Use Redis" in timeline
+        assert "Migrate to Valkey" in timeline
+        assert "Migrate sessions to JWT" in timeline
+
+    def test_empty_kb_produces_empty_timeline(self, tmp_path: Path) -> None:
+        mod = _load_script(_TIMELINE_PATH)
+        kb = tmp_path / "docs" / "brain" / "projects" / "empty"
+        kb.mkdir(parents=True)
+        timeline = mod.generate_timeline(kb)
+        assert "**Total records:** 0" in timeline
+
+
+class TestCompileGraphWithHistory:
+    """compile_graph handles incident and milestone node types."""
+
+    def _make_kb(self, tmp_path: Path, pages: list[tuple[str, str]]) -> Path:
+        kb_dir = tmp_path / "docs" / "brain" / "projects" / "test"
+        kb_dir.mkdir(parents=True)
+        for rel_path, content in pages:
+            full = kb_dir / rel_path
+            full.parent.mkdir(parents=True, exist_ok=True)
+            full.write_text(content, encoding="utf-8")
+        return kb_dir
+
+    def test_compiles_incident_as_node(self, tmp_path: Path) -> None:
+        mod = _load_script(_COMPILE_GRAPH_PATH)
+        kb = self._make_kb(tmp_path, [
+            ("incidents/payment-duplicate.md", """---
+id: payment-duplicate
+type: incident
+severity: high
+status: resolved
+domain: payment
+project: test
+confidence: verified
+provenance: human
+knowledge_role: observed
+last_updated: "2026-08-07"
+tags:
+  - type/incident
+  - domain/payment
+---
+
+# Incident: Duplicate Capture
+
+## Affects
+- [[payment-capture|Capture capability]]
+"""),
+            ("domains/payment/capabilities/payment-capture.md", """---
+id: payment-capture
+type: capability
+status: active
+confidence: supported
+provenance: source_code
+knowledge_role: observed
+project: test
+domain: payment
+source_files: []
+last_updated: "2026-08-07"
+tags:
+  - type/capability
+  - domain/payment
+  - status/active
+---
+
+# Capture
+"""),
+        ])
+        result = mod.compile_graph(kb)
+        types = {n["type"] for n in result["nodes"]}
+        assert "incident" in types
+        # Incident → capability edge should be risky_for
+        edges = {(e["from"], e["to"], e["type"]) for e in result["edges"]}
+        assert ("payment-duplicate", "payment-capture", "risky_for") in edges
+
+    def test_compiles_milestone_as_node(self, tmp_path: Path) -> None:
+        mod = _load_script(_COMPILE_GRAPH_PATH)
+        kb = self._make_kb(tmp_path, [
+            ("milestones/mvp-launch.md", """---
+id: mvp-launch
+type: milestone
+date: "2026-04-01"
+significance: product
+project: test
+confidence: verified
+provenance: human
+knowledge_role: intent
+last_updated: "2026-08-07"
+tags:
+  - type/milestone
+---
+
+# Milestone: MVP Launched
+
+## Related Decisions
+- [[core-use-postgres|Use PostgreSQL]]
+"""),
+            ("decisions/core-use-postgres.md", """---
+id: core-use-postgres
+type: decision
+decision_state: active
+status: active
+confidence: verified
+provenance: human
+knowledge_role: intent
+project: test
+domain: core
+source_files: []
+last_updated: "2026-08-07"
+tags:
+  - type/decision
+  - domain/core
+---
+
+# Decision: Use PostgreSQL
+"""),
+        ])
+        result = mod.compile_graph(kb)
+        types = {n["type"] for n in result["nodes"]}
+        assert "milestone" in types
+        assert "decision" in types
