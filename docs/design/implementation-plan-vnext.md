@@ -43,7 +43,7 @@ Before adding behavior, normalize contradictory contracts across the repo.
 
 Known examples:
 
-- README title/references still use `kb-builder` in places while package/product is Kode Brain.
+- README title/references still use `kodebrain` in places while package/product is Kode Brain.
 - `pyproject.toml` Homepage points to the old repository path.
 - README says the project is still design-only although implementation exists.
 - taxonomy/schema use hierarchical IDs such as `auth/login-flow` while current `SKILL.md` and templates use flat IDs such as `auth-login-flow`.

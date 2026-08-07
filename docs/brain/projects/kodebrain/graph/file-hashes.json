@@ -1,0 +1,16 @@
+{
+  "kodebrain/__init__.py": "2c12b8ea17aeb6f9f72a6b02aca218bbc4508a46df9e365a8f6c45ad769e0b34",
+  "kodebrain/cli.py": "260efb9e3461983cf9c2ab948a349e9fe0e3ed68ec1eed4ed0ab08286924d3a8",
+  "kodebrain/hook.py": "4b274b2a4868d2dc948b5dff449b7e38be3109c1002f0bb8a37ec60fea551b6e",
+  "kodebrain/install.py": "9bcd6b4f0d8d33ee682501c76ee58acff8f89139bf503da99bf66d2885734ea1",
+  "kodebrain/skill/scripts/compile_graph.py": "eb97c10545dedb6c24ccda459962dd6aefde9c195f13140ba26c1761d6ecc28b",
+  "kodebrain/skill/scripts/frontmatter.py": "9da0dc62c8659aa4b7dc49850939b4bcdc86ef562c2e40b230dd208e87c826fe",
+  "kodebrain/skill/scripts/harvest.py": "9924136128177b60a5aa5614bc4d7c6653ebcc81ef1213a43e73b86790efcee7",
+  "kodebrain/skill/scripts/migrate_kb.py": "9ec7862e40d1bd75f266961add78780b860dce4381db7cc25c52df5fb6cbb36b",
+  "kodebrain/skill/scripts/project_inventory.py": "9c72ff2904060d52acf4cc93b0658a5ed0ed388d4e0d7e59712422574f85aca9",
+  "kodebrain/skill/scripts/project_state.py": "85790fff8c1336ba5e2befeb6fa0bf37d8c26692811948f03d9c0bbec6296550",
+  "kodebrain/skill/scripts/spec_validator.py": "43047146e71741721b84632737fe3d575fec8a7ed360beb572dad3b09aeab0aa",
+  "kodebrain/skill/scripts/timeline.py": "f3e582225305fb2caa79af225b31c3620480681ea46def7390c00d3a15836dd4",
+  "tests/test_referential_integrity.py": "770b73295ae44fe7973a3e26f1f65e50caa4be748afe689f4380548747dfc872",
+  "tests/test_substrate.py": "38f72302ce39902192e4630555a9a33f31b1a3674e4e6ab2e1f177a6e84e6443"
+}

@@ -1,0 +1,893 @@
+[
+  {
+    "from": "kb-core-graph-compilation",
+    "to": "kb-core",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-core-graph-compilation",
+    "to": "kb-core-knowledge-layers",
+    "type": "uses",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-core-confidence",
+    "to": "kb-core",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-onboard-flow",
+    "to": "kb-core-confidence",
+    "type": "uses",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-governance",
+    "to": "kb-core-confidence",
+    "type": "uses",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-core-drift",
+    "to": "kb-core",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-onboard",
+    "to": "kb-core-drift",
+    "type": "uses",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-change-reconciliation",
+    "to": "kb-core-drift",
+    "type": "uses",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-core-knowledge-layers",
+    "to": "kb-core",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-onboard",
+    "to": "kb-core-knowledge-layers",
+    "type": "uses",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-change-reconciliation",
+    "to": "kb-core-knowledge-layers",
+    "type": "uses",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-core-provenance",
+    "to": "kb-core",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-onboard",
+    "to": "kb-core-provenance",
+    "type": "uses",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-governance",
+    "to": "kb-core-provenance",
+    "type": "uses",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-core",
+    "to": "kb-project",
+    "type": "depends_on",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-core",
+    "to": "kb-workflow",
+    "type": "depends_on",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-core",
+    "to": "kb-history",
+    "type": "depends_on",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-core",
+    "to": "kb-governance",
+    "type": "depends_on",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-core",
+    "to": "kb-substrate",
+    "type": "depends_on",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-core",
+    "to": "kb-core-knowledge-layers",
+    "type": "contains",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-core",
+    "to": "kb-core-provenance",
+    "type": "contains",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-core",
+    "to": "kb-core-confidence",
+    "type": "contains",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-core",
+    "to": "kb-core-drift",
+    "type": "contains",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-core",
+    "to": "kb-core-graph-compilation",
+    "type": "contains",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-core",
+    "to": "kb-core-knowledge-node-model",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-core",
+    "to": "kb-core-knowledge-edge-model",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-core-knowledge-edge-model",
+    "to": "kb-core",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-core-knowledge-node-model",
+    "to": "kb-core",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-core-knowledge-node-model",
+    "to": "kb-workflow-status-lifecycle-separation",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-governance-spec-authority",
+    "to": "kb-governance",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-onboard",
+    "to": "kb-governance-spec-authority",
+    "type": "uses",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-governance",
+    "to": "kb-substrate",
+    "type": "depends_on",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-governance",
+    "to": "kb-core",
+    "type": "depends_on",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow",
+    "to": "kb-governance",
+    "type": "depends_on",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-governance",
+    "to": "kb-governance-spec-authority",
+    "type": "contains",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-history-decision-lifecycle",
+    "to": "kb-history",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-change-lifecycle",
+    "to": "kb-history-decision-lifecycle",
+    "type": "uses",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-history",
+    "to": "kb-workflow",
+    "type": "depends_on",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-history",
+    "to": "kb-project",
+    "type": "depends_on",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-history",
+    "to": "kb-core",
+    "type": "depends_on",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-history",
+    "to": "kb-substrate",
+    "type": "depends_on",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-history",
+    "to": "kb-history-decision-lifecycle",
+    "type": "contains",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-project",
+    "to": "kb-core",
+    "type": "depends_on",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-project",
+    "to": "kb-workflow",
+    "type": "depends_on",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-project",
+    "to": "kb-history",
+    "type": "depends_on",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-project",
+    "to": "kb-governance",
+    "type": "depends_on",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-substrate",
+    "to": "kb-project",
+    "type": "depends_on",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-substrate-harvest",
+    "to": "kb-substrate",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-substrate",
+    "to": "kb-workflow",
+    "type": "depends_on",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-substrate",
+    "to": "kb-core",
+    "type": "depends_on",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-substrate",
+    "to": "kb-project",
+    "type": "depends_on",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-history",
+    "to": "kb-substrate",
+    "type": "depends_on",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-substrate",
+    "to": "kb-substrate-harvest",
+    "type": "contains",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-substrate-llm-fallback-risk",
+    "to": "kb-substrate",
+    "type": "risky_for",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-substrate-llm-fallback-risk",
+    "to": "kb-substrate",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-substrate-llm-fallback-risk",
+    "to": "kb-workflow-onboard",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-substrate-llm-fallback-risk",
+    "to": "kb-core-graph-compilation",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-change-reconciliation",
+    "to": "kb-workflow",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-change-reconciliation",
+    "to": "kb-workflow-change-reconciliation-flow",
+    "type": "part_of_flow",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-change-reconciliation",
+    "to": "kb-workflow-change-lifecycle",
+    "type": "uses",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-change-reconciliation",
+    "to": "kb-core-drift",
+    "type": "uses",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-onboard",
+    "to": "kb-workflow",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-onboard",
+    "to": "kb-workflow-onboard-flow",
+    "type": "part_of_flow",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-onboard",
+    "to": "kb-core-provenance",
+    "type": "uses",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-onboard",
+    "to": "kb-core-knowledge-layers",
+    "type": "uses",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-change-lifecycle",
+    "to": "kb-workflow",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-change-reconciliation",
+    "to": "kb-workflow-change-lifecycle",
+    "type": "uses",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-onboard",
+    "to": "kb-workflow-change-lifecycle",
+    "type": "uses",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-history",
+    "to": "kb-workflow-change-lifecycle",
+    "type": "uses",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-status-lifecycle-separation",
+    "to": "kb-workflow",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-change-lifecycle",
+    "to": "kb-workflow-status-lifecycle-separation",
+    "type": "uses",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-history-decision-lifecycle",
+    "to": "kb-workflow-status-lifecycle-separation",
+    "type": "uses",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-change-reconciliation-flow",
+    "to": "kb-workflow",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-change-reconciliation-flow",
+    "to": "kb-workflow-change-reconciliation",
+    "type": "implements",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-change-reconciliation-flow",
+    "to": "kb-workflow-change-lifecycle",
+    "type": "uses",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-change-reconciliation-flow",
+    "to": "kb-core-drift",
+    "type": "uses",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-change-reconciliation-flow",
+    "to": "kb-workflow-status-lifecycle-separation",
+    "type": "uses",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-onboard-flow",
+    "to": "kb-workflow",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-onboard-flow",
+    "to": "kb-workflow-onboard",
+    "type": "implements",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-onboard-flow",
+    "to": "kb-core-knowledge-layers",
+    "type": "uses",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-onboard-flow",
+    "to": "kb-core-provenance",
+    "type": "uses",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow-onboard-flow",
+    "to": "kb-core-confidence",
+    "type": "uses",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow",
+    "to": "kb-core",
+    "type": "depends_on",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow",
+    "to": "kb-history",
+    "type": "depends_on",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow",
+    "to": "kb-governance",
+    "type": "depends_on",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow",
+    "to": "kb-project",
+    "type": "depends_on",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow",
+    "to": "kb-substrate",
+    "type": "depends_on",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow",
+    "to": "kb-workflow-change-lifecycle",
+    "type": "contains",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow",
+    "to": "kb-workflow-status-lifecycle-separation",
+    "type": "contains",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow",
+    "to": "kb-workflow-onboard",
+    "type": "contains",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow",
+    "to": "kb-workflow-change-reconciliation",
+    "type": "contains",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow",
+    "to": "kb-workflow-onboard-flow",
+    "type": "contains",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kb-workflow",
+    "to": "kb-workflow-change-reconciliation-flow",
+    "type": "contains",
+    "confidence": "supported",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kodebrain",
+    "to": "kb-core",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kodebrain",
+    "to": "kb-workflow",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kodebrain",
+    "to": "kb-history",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kodebrain",
+    "to": "kb-project",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kodebrain",
+    "to": "kb-governance",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kodebrain",
+    "to": "kb-substrate",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  }
+]

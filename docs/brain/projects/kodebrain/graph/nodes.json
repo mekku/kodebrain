@@ -1,0 +1,570 @@
+[
+  {
+    "id": "kb-core-graph-compilation",
+    "type": "capability",
+    "name": "Kb Core Graph Compilation",
+    "summary": "Part of [[kb-core|Core domain]].",
+    "project": "kodebrain",
+    "domain": "kb-core",
+    "status": "active",
+    "confidence": "supported",
+    "provenance": "source_code",
+    "knowledge_role": "observed",
+    "source_files": [
+      "kodebrain/skill/scripts/compile_graph.py"
+    ],
+    "page_path": "kodebrain/domains/kb-core/capabilities/kb-core-graph-compilation.md",
+    "tags": [
+      "type/capability",
+      "domain/kb-core",
+      "status/active"
+    ],
+    "last_updated": "2026-08-07",
+    "last_reviewed": null
+  },
+  {
+    "id": "kb-core-confidence",
+    "type": "concept",
+    "name": "Kb Core Confidence",
+    "summary": "Part of [[kb-core|Core domain]].",
+    "project": "kodebrain",
+    "domain": "kb-core",
+    "status": "active",
+    "confidence": "supported",
+    "provenance": "project_document",
+    "knowledge_role": "intent",
+    "source_files": [
+      "docs/design/spec/knowledge-model.md",
+      "schema/node.schema.json"
+    ],
+    "page_path": "kodebrain/domains/kb-core/concepts/kb-core-confidence.md",
+    "tags": [
+      "type/concept",
+      "domain/kb-core",
+      "status/active"
+    ],
+    "last_updated": "2026-08-07",
+    "last_reviewed": null
+  },
+  {
+    "id": "kb-core-drift",
+    "type": "concept",
+    "name": "Kb Core Drift",
+    "summary": "Part of [[kb-core|Core domain]].",
+    "project": "kodebrain",
+    "domain": "kb-core",
+    "status": "active",
+    "confidence": "supported",
+    "provenance": "project_document",
+    "knowledge_role": "intent",
+    "source_files": [
+      "docs/design/spec/knowledge-model.md"
+    ],
+    "page_path": "kodebrain/domains/kb-core/concepts/kb-core-drift.md",
+    "tags": [
+      "type/concept",
+      "domain/kb-core",
+      "status/active"
+    ],
+    "last_updated": "2026-08-07",
+    "last_reviewed": null
+  },
+  {
+    "id": "kb-core-knowledge-layers",
+    "type": "concept",
+    "name": "Kb Core Knowledge Layers",
+    "summary": "Part of [[kb-core|Core domain]].",
+    "project": "kodebrain",
+    "domain": "kb-core",
+    "status": "active",
+    "confidence": "supported",
+    "provenance": "project_document",
+    "knowledge_role": "intent",
+    "source_files": [
+      "docs/design/spec/knowledge-model.md"
+    ],
+    "page_path": "kodebrain/domains/kb-core/concepts/kb-core-knowledge-layers.md",
+    "tags": [
+      "type/concept",
+      "domain/kb-core",
+      "status/active"
+    ],
+    "last_updated": "2026-08-07",
+    "last_reviewed": null
+  },
+  {
+    "id": "kb-core-provenance",
+    "type": "concept",
+    "name": "Kb Core Provenance",
+    "summary": "Part of [[kb-core|Core domain]].",
+    "project": "kodebrain",
+    "domain": "kb-core",
+    "status": "active",
+    "confidence": "supported",
+    "provenance": "project_document",
+    "knowledge_role": "intent",
+    "source_files": [
+      "docs/design/spec/knowledge-model.md",
+      "schema/node.schema.json"
+    ],
+    "page_path": "kodebrain/domains/kb-core/concepts/kb-core-provenance.md",
+    "tags": [
+      "type/concept",
+      "domain/kb-core",
+      "status/active"
+    ],
+    "last_updated": "2026-08-07",
+    "last_reviewed": null
+  },
+  {
+    "id": "kb-core",
+    "type": "domain",
+    "name": "Kb Core",
+    "summary": "Define what knowledge *means* in Kode Brain — the mental model (three layers), truth model (intent vs observed), provenance and confidence as separate axes, harvest policy, drift detection, and graph compilation from Markdown wiki-links.",
+    "project": "kodebrain",
+    "domain": "kb-core",
+    "status": "active",
+    "confidence": "supported",
+    "provenance": "project_document",
+    "knowledge_role": "intent",
+    "source_files": [
+      "docs/design/spec/knowledge-model.md",
+      "schema/node.schema.json",
+      "schema/edge.schema.json"
+    ],
+    "page_path": "kodebrain/domains/kb-core/kb-core.md",
+    "tags": [
+      "type/domain",
+      "domain/kb-core",
+      "status/active"
+    ],
+    "last_updated": "2026-08-07",
+    "last_reviewed": null
+  },
+  {
+    "id": "kb-core-knowledge-edge-model",
+    "type": "model",
+    "name": "Kb Core Knowledge Edge Model",
+    "summary": "Part of [[kb-core|Core domain]].",
+    "project": "kodebrain",
+    "domain": "kb-core",
+    "status": "active",
+    "confidence": "supported",
+    "provenance": "project_document",
+    "knowledge_role": "intent",
+    "source_files": [
+      "schema/edge.schema.json"
+    ],
+    "page_path": "kodebrain/domains/kb-core/models/kb-core-knowledge-edge-model.md",
+    "tags": [
+      "type/model",
+      "domain/kb-core",
+      "status/active"
+    ],
+    "last_updated": "2026-08-07",
+    "last_reviewed": null
+  },
+  {
+    "id": "kb-core-knowledge-node-model",
+    "type": "model",
+    "name": "Kb Core Knowledge Node Model",
+    "summary": "Part of [[kb-core|Core domain]].",
+    "project": "kodebrain",
+    "domain": "kb-core",
+    "status": "active",
+    "confidence": "supported",
+    "provenance": "project_document",
+    "knowledge_role": "intent",
+    "source_files": [
+      "schema/node.schema.json"
+    ],
+    "page_path": "kodebrain/domains/kb-core/models/kb-core-knowledge-node-model.md",
+    "tags": [
+      "type/model",
+      "domain/kb-core",
+      "status/active"
+    ],
+    "last_updated": "2026-08-07",
+    "last_reviewed": null
+  },
+  {
+    "id": "kb-governance-spec-authority",
+    "type": "concept",
+    "name": "Kb Governance Spec Authority",
+    "summary": "Part of [[kb-governance|Governance domain]].",
+    "project": "kodebrain",
+    "domain": "kb-governance",
+    "status": "active",
+    "confidence": "supported",
+    "provenance": "project_document",
+    "knowledge_role": "intent",
+    "source_files": [
+      "docs/design/spec/governance.md",
+      "docs/design/spec.md"
+    ],
+    "page_path": "kodebrain/domains/kb-governance/concepts/kb-governance-spec-authority.md",
+    "tags": [
+      "type/concept",
+      "domain/kb-governance",
+      "status/active"
+    ],
+    "last_updated": "2026-08-07",
+    "last_reviewed": null
+  },
+  {
+    "id": "kb-governance",
+    "type": "domain",
+    "name": "Kb Governance",
+    "summary": "Define the *rules* that govern the KB itself — precedence hierarchy, spec authority, compatibility/migration principles, non-goals, success criteria.",
+    "project": "kodebrain",
+    "domain": "kb-governance",
+    "status": "active",
+    "confidence": "supported",
+    "provenance": "project_document",
+    "knowledge_role": "intent",
+    "source_files": [
+      "docs/design/spec/governance.md",
+      "docs/design/spec.md"
+    ],
+    "page_path": "kodebrain/domains/kb-governance/kb-governance.md",
+    "tags": [
+      "type/domain",
+      "domain/kb-governance",
+      "status/active"
+    ],
+    "last_updated": "2026-08-07",
+    "last_reviewed": null
+  },
+  {
+    "id": "kb-history-decision-lifecycle",
+    "type": "concept",
+    "name": "Kb History Decision Lifecycle",
+    "summary": "Part of [[kb-history|History domain]].",
+    "project": "kodebrain",
+    "domain": "kb-history",
+    "status": "active",
+    "confidence": "supported",
+    "provenance": "project_document",
+    "knowledge_role": "intent",
+    "source_files": [
+      "docs/design/spec/history-model.md"
+    ],
+    "page_path": "kodebrain/domains/kb-history/concepts/kb-history-decision-lifecycle.md",
+    "tags": [
+      "type/concept",
+      "domain/kb-history",
+      "status/active"
+    ],
+    "last_updated": "2026-08-07",
+    "last_reviewed": null
+  },
+  {
+    "id": "kb-history",
+    "type": "domain",
+    "name": "Kb History",
+    "summary": "Answer the 4th Kode Brain question: **HOW DID WE GET HERE?** Owns temporal record types (decisions, incidents, milestones, completed changes), their lifecycle semantics, decision lineage, timeline/events generation, and history retrieval in agent workflows.",
+    "project": "kodebrain",
+    "domain": "kb-history",
+    "status": "active",
+    "confidence": "supported",
+    "provenance": "project_document",
+    "knowledge_role": "intent",
+    "source_files": [
+      "docs/design/spec/history-model.md",
+      "kodebrain/skill/scripts/timeline.py"
+    ],
+    "page_path": "kodebrain/domains/kb-history/kb-history.md",
+    "tags": [
+      "type/domain",
+      "domain/kb-history",
+      "status/active"
+    ],
+    "last_updated": "2026-08-07",
+    "last_reviewed": null
+  },
+  {
+    "id": "kb-project",
+    "type": "domain",
+    "name": "Kb Project",
+    "summary": "Define the *shape* of project knowledge — structure, layout, hub contract, architecture contract, domain contract, naming conventions, node ID format.",
+    "project": "kodebrain",
+    "domain": "kb-project",
+    "status": "active",
+    "confidence": "supported",
+    "provenance": "project_document",
+    "knowledge_role": "intent",
+    "source_files": [
+      "docs/design/spec/project-model.md",
+      "templates/"
+    ],
+    "page_path": "kodebrain/domains/kb-project/kb-project.md",
+    "tags": [
+      "type/domain",
+      "domain/kb-project",
+      "status/active"
+    ],
+    "last_updated": "2026-08-07",
+    "last_reviewed": null
+  },
+  {
+    "id": "kb-substrate-harvest",
+    "type": "capability",
+    "name": "Kb Substrate Harvest",
+    "summary": "Part of [[kb-substrate|Substrate domain]].",
+    "project": "kodebrain",
+    "domain": "kb-substrate",
+    "status": "active",
+    "confidence": "supported",
+    "provenance": "source_code",
+    "knowledge_role": "observed",
+    "source_files": [
+      "kodebrain/skill/scripts/harvest.py"
+    ],
+    "page_path": "kodebrain/domains/kb-substrate/capabilities/kb-substrate-harvest.md",
+    "tags": [
+      "type/capability",
+      "domain/kb-substrate",
+      "status/active"
+    ],
+    "last_updated": "2026-08-07",
+    "last_reviewed": null
+  },
+  {
+    "id": "kb-substrate",
+    "type": "domain",
+    "name": "Kb Substrate",
+    "summary": "Deterministic Python scripts that provide the computational substrate for Kode Brain — source harvesting, graph compilation, timeline generation, project state classification, inventory, KB migration, and schema validation. These scripts are called by the agent during skill execution; they are not user-facing.",
+    "project": "kodebrain",
+    "domain": "kb-substrate",
+    "status": "active",
+    "confidence": "supported",
+    "provenance": "source_code",
+    "knowledge_role": "observed",
+    "source_files": [
+      "kodebrain/skill/scripts/harvest.py",
+      "kodebrain/skill/scripts/compile_graph.py",
+      "kodebrain/skill/scripts/timeline.py",
+      "kodebrain/skill/scripts/project_state.py",
+      "kodebrain/skill/scripts/project_inventory.py",
+      "kodebrain/skill/scripts/migrate_kb.py",
+      "kodebrain/skill/scripts/spec_validator.py",
+      "kodebrain/skill/scripts/frontmatter.py"
+    ],
+    "page_path": "kodebrain/domains/kb-substrate/kb-substrate.md",
+    "tags": [
+      "type/domain",
+      "domain/kb-substrate",
+      "status/active"
+    ],
+    "last_updated": "2026-08-07",
+    "last_reviewed": null
+  },
+  {
+    "id": "kb-substrate-llm-fallback-risk",
+    "type": "risk",
+    "name": "Kb Substrate Llm Fallback Risk",
+    "summary": "Part of [[kb-substrate|Substrate domain]].",
+    "project": "kodebrain",
+    "domain": "kb-substrate",
+    "status": "active",
+    "confidence": "supported",
+    "provenance": "project_document",
+    "knowledge_role": "mixed",
+    "source_files": [
+      "kodebrain/skill/SKILL.md",
+      "docs/design/implementation-plan-vnext.md"
+    ],
+    "page_path": "kodebrain/domains/kb-substrate/risks/kb-substrate-llm-fallback-risk.md",
+    "tags": [
+      "type/risk",
+      "domain/kb-substrate",
+      "status/active"
+    ],
+    "last_updated": "2026-08-07",
+    "last_reviewed": null
+  },
+  {
+    "id": "kb-workflow-change-reconciliation",
+    "type": "capability",
+    "name": "Kb Workflow Change Reconciliation",
+    "summary": "Part of [[kb-workflow|Workflow domain]].",
+    "project": "kodebrain",
+    "domain": "kb-workflow",
+    "status": "active",
+    "confidence": "supported",
+    "provenance": "project_document",
+    "knowledge_role": "intent",
+    "source_files": [
+      "docs/design/spec/workflow-model.md"
+    ],
+    "page_path": "kodebrain/domains/kb-workflow/capabilities/kb-workflow-change-reconciliation.md",
+    "tags": [
+      "type/capability",
+      "domain/kb-workflow",
+      "status/active"
+    ],
+    "last_updated": "2026-08-07",
+    "last_reviewed": null
+  },
+  {
+    "id": "kb-workflow-onboard",
+    "type": "capability",
+    "name": "Kb Workflow Onboard",
+    "summary": "Part of [[kb-workflow|Workflow domain]].",
+    "project": "kodebrain",
+    "domain": "kb-workflow",
+    "status": "active",
+    "confidence": "supported",
+    "provenance": "project_document",
+    "knowledge_role": "intent",
+    "source_files": [
+      "kodebrain/skill/SKILL.md",
+      "docs/design/spec/workflow-model.md"
+    ],
+    "page_path": "kodebrain/domains/kb-workflow/capabilities/kb-workflow-onboard.md",
+    "tags": [
+      "type/capability",
+      "domain/kb-workflow",
+      "status/active"
+    ],
+    "last_updated": "2026-08-07",
+    "last_reviewed": null
+  },
+  {
+    "id": "kb-workflow-change-lifecycle",
+    "type": "concept",
+    "name": "Kb Workflow Change Lifecycle",
+    "summary": "Part of [[kb-workflow|Workflow domain]].",
+    "project": "kodebrain",
+    "domain": "kb-workflow",
+    "status": "active",
+    "confidence": "supported",
+    "provenance": "project_document",
+    "knowledge_role": "intent",
+    "source_files": [
+      "docs/design/spec/workflow-model.md"
+    ],
+    "page_path": "kodebrain/domains/kb-workflow/concepts/kb-workflow-change-lifecycle.md",
+    "tags": [
+      "type/concept",
+      "domain/kb-workflow",
+      "status/active"
+    ],
+    "last_updated": "2026-08-07",
+    "last_reviewed": null
+  },
+  {
+    "id": "kb-workflow-status-lifecycle-separation",
+    "type": "concept",
+    "name": "Kb Workflow Status Lifecycle Separation",
+    "summary": "Part of [[kb-workflow|Workflow domain]].",
+    "project": "kodebrain",
+    "domain": "kb-workflow",
+    "status": "active",
+    "confidence": "supported",
+    "provenance": "project_document",
+    "knowledge_role": "intent",
+    "source_files": [
+      "docs/design/spec/workflow-model.md"
+    ],
+    "page_path": "kodebrain/domains/kb-workflow/concepts/kb-workflow-status-lifecycle-separation.md",
+    "tags": [
+      "type/concept",
+      "domain/kb-workflow",
+      "status/active"
+    ],
+    "last_updated": "2026-08-07",
+    "last_reviewed": null
+  },
+  {
+    "id": "kb-workflow-change-reconciliation-flow",
+    "type": "flow",
+    "name": "Kb Workflow Change Reconciliation Flow",
+    "summary": "Part of [[kb-workflow|Workflow domain]]. Implements [[kb-workflow-change-reconciliation|Change Reconciliation]].",
+    "project": "kodebrain",
+    "domain": "kb-workflow",
+    "status": "active",
+    "confidence": "supported",
+    "provenance": "project_document",
+    "knowledge_role": "intent",
+    "source_files": [
+      "docs/design/spec/workflow-model.md"
+    ],
+    "page_path": "kodebrain/domains/kb-workflow/flows/kb-workflow-change-reconciliation-flow.md",
+    "tags": [
+      "type/flow",
+      "domain/kb-workflow",
+      "status/active"
+    ],
+    "last_updated": "2026-08-07",
+    "last_reviewed": null
+  },
+  {
+    "id": "kb-workflow-onboard-flow",
+    "type": "flow",
+    "name": "Kb Workflow Onboard Flow",
+    "summary": "Part of [[kb-workflow|Workflow domain]]. Implements [[kb-workflow-onboard|Onboard]].",
+    "project": "kodebrain",
+    "domain": "kb-workflow",
+    "status": "active",
+    "confidence": "supported",
+    "provenance": "project_document",
+    "knowledge_role": "intent",
+    "source_files": [
+      "kodebrain/skill/SKILL.md",
+      "docs/design/spec/workflow-model.md"
+    ],
+    "page_path": "kodebrain/domains/kb-workflow/flows/kb-workflow-onboard-flow.md",
+    "tags": [
+      "type/flow",
+      "domain/kb-workflow",
+      "status/active"
+    ],
+    "last_updated": "2026-08-07",
+    "last_reviewed": null
+  },
+  {
+    "id": "kb-workflow",
+    "type": "domain",
+    "name": "Kb Workflow",
+    "summary": "Define what *processes* mutate or use the knowledge base — onboarding (greenfield + brownfield), change lifecycle (planned → in_progress → implemented → reconciled), status vs lifecycle separation, and agent reading/update behavior.",
+    "project": "kodebrain",
+    "domain": "kb-workflow",
+    "status": "active",
+    "confidence": "supported",
+    "provenance": "project_document",
+    "knowledge_role": "intent",
+    "source_files": [
+      "docs/design/spec/workflow-model.md",
+      "kodebrain/skill/SKILL.md"
+    ],
+    "page_path": "kodebrain/domains/kb-workflow/kb-workflow.md",
+    "tags": [
+      "type/domain",
+      "domain/kb-workflow",
+      "status/active"
+    ],
+    "last_updated": "2026-08-07",
+    "last_reviewed": null
+  },
+  {
+    "id": "kodebrain",
+    "type": "project",
+    "name": "Kodebrain",
+    "summary": "Kode Brain is a living project knowledge and coordination system for software projects. It converts an imperfect, growing codebase into a structured knowledge map so humans and AI agents can understand and modify the system without rediscovering everything from scratch.",
+    "project": "kodebrain",
+    "domain": "",
+    "status": "active",
+    "confidence": "verified",
+    "provenance": "human",
+    "knowledge_role": "intent",
+    "source_files": [],
+    "page_path": "kodebrain/kodebrain.md",
+    "tags": [
+      "type/project",
+      "status/active"
+    ],
+    "last_updated": "2026-08-07",
+    "last_reviewed": "2026-08-07"
+  }
+]

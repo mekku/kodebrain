@@ -1,0 +1,82 @@
+{
+  "kodebrain/skill/scripts/compile_graph.py": [
+    "kb-core-graph-compilation",
+    "kb-substrate"
+  ],
+  "docs/design/spec/knowledge-model.md": [
+    "kb-core-confidence",
+    "kb-core-drift",
+    "kb-core-knowledge-layers",
+    "kb-core-provenance",
+    "kb-core"
+  ],
+  "schema/node.schema.json": [
+    "kb-core-confidence",
+    "kb-core-provenance",
+    "kb-core",
+    "kb-core-knowledge-node-model"
+  ],
+  "schema/edge.schema.json": [
+    "kb-core",
+    "kb-core-knowledge-edge-model"
+  ],
+  "docs/design/spec/governance.md": [
+    "kb-governance-spec-authority",
+    "kb-governance"
+  ],
+  "docs/design/spec.md": [
+    "kb-governance-spec-authority",
+    "kb-governance"
+  ],
+  "docs/design/spec/history-model.md": [
+    "kb-history-decision-lifecycle",
+    "kb-history"
+  ],
+  "kodebrain/skill/scripts/timeline.py": [
+    "kb-history",
+    "kb-substrate"
+  ],
+  "docs/design/spec/project-model.md": [
+    "kb-project"
+  ],
+  "templates/": [
+    "kb-project"
+  ],
+  "kodebrain/skill/scripts/harvest.py": [
+    "kb-substrate-harvest",
+    "kb-substrate"
+  ],
+  "kodebrain/skill/scripts/project_state.py": [
+    "kb-substrate"
+  ],
+  "kodebrain/skill/scripts/project_inventory.py": [
+    "kb-substrate"
+  ],
+  "kodebrain/skill/scripts/migrate_kb.py": [
+    "kb-substrate"
+  ],
+  "kodebrain/skill/scripts/spec_validator.py": [
+    "kb-substrate"
+  ],
+  "kodebrain/skill/scripts/frontmatter.py": [
+    "kb-substrate"
+  ],
+  "kodebrain/skill/SKILL.md": [
+    "kb-substrate-llm-fallback-risk",
+    "kb-workflow-onboard",
+    "kb-workflow-onboard-flow",
+    "kb-workflow"
+  ],
+  "docs/design/implementation-plan-vnext.md": [
+    "kb-substrate-llm-fallback-risk"
+  ],
+  "docs/design/spec/workflow-model.md": [
+    "kb-workflow-change-reconciliation",
+    "kb-workflow-onboard",
+    "kb-workflow-change-lifecycle",
+    "kb-workflow-status-lifecycle-separation",
+    "kb-workflow-change-reconciliation-flow",
+    "kb-workflow-onboard-flow",
+    "kb-workflow"
+  ]
+}
