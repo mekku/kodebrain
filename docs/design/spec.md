@@ -63,8 +63,9 @@ Each `[bracket]` links to a canonical child specification. The parent relationsh
 | Workflow | What *processes* mutate or use knowledge? | Onboarding, change lifecycle, status/lifecycle separation, agent behavior |
 | History | What *temporal records* do those processes produce? | Decision records/lineage, incident records/lifecycle, milestone records, change records, events, timeline, retrieval |
 | Governance | What *rules* govern the KB itself? | Precedence, compatibility, non-goals, success criteria, spec authority |
+| Validation Gate | What *validates* onboard completion? | Severity model, completion states, canonical_source, projection rules |
 
-**Schema** (`schema/node.schema.json`) is the machine contract derived from all five specs — it does not define semantics independently.
+**Schema** (`schema/node.schema.json`) is the machine contract derived from all specs — it does not define semantics independently.
 
 ---
 
@@ -77,6 +78,7 @@ Each `[bracket]` links to a canonical child specification. The parent relationsh
 | **Workflow Model** | [`spec/workflow-model.md`](spec/workflow-model.md) | Onboarding (greenfield/brownfield), change lifecycle, status/lifecycle, agent behavior |
 | **History Model** | [`spec/history-model.md`](spec/history-model.md) | 4th question, record types, decision lineage, incidents, milestones, events, timeline, retrieval |
 | **Governance** | [`spec/governance.md`](spec/governance.md) | Precedence, compatibility, non-goals, success criteria, spec authority |
+| **Onboard Validation Gate** | [`spec/onboard-validation-gate.md`](spec/onboard-validation-gate.md) | Validation gate process, severity model (ERROR/DRIFT/REVIEW), completion states, canonical_source, projection rules |
 
 ### Other Design Documents
 

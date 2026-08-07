@@ -1,0 +1,143 @@
+{
+  "kb_path": "/Users/mekku/Documents/projects/kb-builder/docs/brain/projects/kodebrain",
+  "validated_at": "2026-08-07T08:46:07.238642+00:00",
+  "completion_state": "complete_with_drift",
+  "summary": {
+    "total_findings": 12,
+    "error_count": 0,
+    "drift_count": 4,
+    "review_count": 8
+  },
+  "findings": [
+    {
+      "check": "referential-integrity",
+      "severity": "REVIEW",
+      "rule": "orphan-wikilink",
+      "source_node": "kodebrain",
+      "target": "2026-08-07-onboard-validation-canonical-projection",
+      "edge_type": "related_to",
+      "description": "Wiki-link target '2026-08-07-onboard-validation-canonical-projection' does not exist (linked from 'kodebrain' via 'related_to')",
+      "id": "REV-REF-001"
+    },
+    {
+      "id": "REV-INT-001",
+      "check": "intent-observed-consistency",
+      "severity": "REVIEW",
+      "rule": "intent-with-observed-sections",
+      "node": "kb-core-confidence",
+      "description": "Intent node 'kb-core-confidence' contains sections normally found in observed pages. Consider knowledge_role=mixed."
+    },
+    {
+      "id": "REV-INT-002",
+      "check": "intent-observed-consistency",
+      "severity": "REVIEW",
+      "rule": "intent-with-observed-sections",
+      "node": "kb-core-drift",
+      "description": "Intent node 'kb-core-drift' contains sections normally found in observed pages. Consider knowledge_role=mixed."
+    },
+    {
+      "id": "REV-INT-003",
+      "check": "intent-observed-consistency",
+      "severity": "REVIEW",
+      "rule": "intent-with-observed-sections",
+      "node": "kb-core-knowledge-layers",
+      "description": "Intent node 'kb-core-knowledge-layers' contains sections normally found in observed pages. Consider knowledge_role=mixed."
+    },
+    {
+      "id": "REV-INT-004",
+      "check": "intent-observed-consistency",
+      "severity": "REVIEW",
+      "rule": "intent-with-observed-sections",
+      "node": "kb-core-provenance",
+      "description": "Intent node 'kb-core-provenance' contains sections normally found in observed pages. Consider knowledge_role=mixed."
+    },
+    {
+      "id": "REV-INT-005",
+      "check": "intent-observed-consistency",
+      "severity": "REVIEW",
+      "rule": "intent-with-observed-sections",
+      "node": "kb-core-knowledge-edge-model",
+      "description": "Intent node 'kb-core-knowledge-edge-model' contains sections normally found in observed pages. Consider knowledge_role=mixed."
+    },
+    {
+      "id": "REV-INT-006",
+      "check": "intent-observed-consistency",
+      "severity": "REVIEW",
+      "rule": "intent-with-observed-sections",
+      "node": "kb-core-knowledge-node-model",
+      "description": "Intent node 'kb-core-knowledge-node-model' contains sections normally found in observed pages. Consider knowledge_role=mixed."
+    },
+    {
+      "id": "REV-INT-007",
+      "check": "intent-observed-consistency",
+      "severity": "REVIEW",
+      "rule": "intent-with-observed-sections",
+      "node": "kb-governance-spec-authority",
+      "description": "Intent node 'kb-governance-spec-authority' contains sections normally found in observed pages. Consider knowledge_role=mixed."
+    },
+    {
+      "id": "DRF-INT-008",
+      "check": "intent-observed-consistency",
+      "severity": "DRIFT",
+      "rule": "intent-observed-mismatch",
+      "node": "kb-workflow-change-reconciliation",
+      "description": "Intent node 'kb-workflow-change-reconciliation' contains observed sections (Runtime Path/Source Evidence) but also contains progress disclaimers \u2014 intended vs observed are flattened into one page"
+    },
+    {
+      "id": "DRF-INT-009",
+      "check": "intent-observed-consistency",
+      "severity": "DRIFT",
+      "rule": "intent-observed-mismatch",
+      "node": "kb-workflow-onboard",
+      "description": "Intent node 'kb-workflow-onboard' contains observed sections (Runtime Path/Source Evidence) but also contains progress disclaimers \u2014 intended vs observed are flattened into one page"
+    },
+    {
+      "id": "DRF-INT-010",
+      "check": "intent-observed-consistency",
+      "severity": "DRIFT",
+      "rule": "intent-observed-mismatch",
+      "node": "kb-workflow-change-reconciliation-flow",
+      "description": "Intent node 'kb-workflow-change-reconciliation-flow' contains observed sections (Runtime Path/Source Evidence) but also contains progress disclaimers \u2014 intended vs observed are flattened into one page"
+    },
+    {
+      "id": "DRF-INT-011",
+      "check": "intent-observed-consistency",
+      "severity": "DRIFT",
+      "rule": "intent-observed-mismatch",
+      "node": "kb-workflow-onboard-flow",
+      "description": "Intent node 'kb-workflow-onboard-flow' contains observed sections (Runtime Path/Source Evidence) but also contains progress disclaimers \u2014 intended vs observed are flattened into one page"
+    }
+  ],
+  "checks_run": {
+    "referential-integrity": {
+      "total": 104,
+      "passed": 103,
+      "failed": 1
+    },
+    "required-artifact-integrity": {
+      "total": 10,
+      "passed": 10,
+      "failed": 0
+    },
+    "provenance-consistency": {
+      "total": 25,
+      "passed": 25,
+      "failed": 0
+    },
+    "intent-observed-consistency": {
+      "total": 25,
+      "passed": 14,
+      "failed": 11
+    },
+    "canonical-authority": {
+      "total": 25,
+      "passed": 25,
+      "failed": 0
+    },
+    "report-consistency": {
+      "total": 5,
+      "passed": 5,
+      "failed": 0
+    }
+  }
+}

@@ -4,11 +4,13 @@ type: concept
 status: active
 confidence: supported
 provenance: project_document
-knowledge_role: intent
+knowledge_role: reference
 project: kodebrain
 domain: kb-workflow
-source_files:
-  - docs/design/spec/workflow-model.md
+canonical_source:
+  path: docs/design/spec/workflow-model.md
+  anchor: change-lifecycle
+source_files: []
 last_updated: "2026-08-07"
 last_reviewed: null
 tags:

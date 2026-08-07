@@ -2,8 +2,8 @@
 id: kodebrain
 type: project
 status: active
-confidence: verified
-provenance: human
+confidence: supported
+provenance: project_document
 knowledge_role: intent
 project: kodebrain
 source_files: []
@@ -125,7 +125,7 @@ None required at runtime. Kode Brain operates on local files only. Optional Obsi
 
 ## Active Changes
 
-- [[changes/active/2026-08-07-vnext-substrate|vNext substrate implementation]]
+- [[2026-08-07-onboard-validation-canonical-projection|Onboard Validation Gate + Canonical Projection]]
 
 ## Where To Start
 

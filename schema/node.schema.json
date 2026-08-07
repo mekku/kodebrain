@@ -99,8 +99,8 @@
     },
     "knowledge_role": {
       "type": "string",
-      "enum": ["intent", "observed", "mixed"],
-      "description": "Whether this node describes intended design, observed implementation, or both."
+      "enum": ["intent", "observed", "mixed", "reference"],
+      "description": "Whether this node describes intended design, observed implementation, both, or is a navigation projection of a canonical source elsewhere."
     },
     "source_files": {
       "type": "array",
@@ -160,6 +160,22 @@
       "type": "string",
       "enum": ["human", "knowledge_builder", "knowledge_architect", "knowledge_reviewer", "generated"],
       "description": "Who created this node."
+    },
+    "canonical_source": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Relative path from project root to the canonical definition document."
+        },
+        "anchor": {
+          "type": "string",
+          "description": "Section anchor within the canonical document (e.g. 'decision-lifecycle')."
+        }
+      },
+      "required": ["path"],
+      "additionalProperties": false,
+      "description": "When set, this page is a projection/navigation of an external canonical definition. Normative questions route to canonical_source, not this page."
     }
   },
   "examples": [

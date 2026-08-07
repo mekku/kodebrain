@@ -29,7 +29,6 @@
     "kb-governance"
   ],
   "docs/design/spec/history-model.md": [
-    "kb-history-decision-lifecycle",
     "kb-history"
   ],
   "kodebrain/skill/scripts/timeline.py": [
@@ -73,8 +72,6 @@
   "docs/design/spec/workflow-model.md": [
     "kb-workflow-change-reconciliation",
     "kb-workflow-onboard",
-    "kb-workflow-change-lifecycle",
-    "kb-workflow-status-lifecycle-separation",
     "kb-workflow-change-reconciliation-flow",
     "kb-workflow-onboard-flow",
     "kb-workflow"

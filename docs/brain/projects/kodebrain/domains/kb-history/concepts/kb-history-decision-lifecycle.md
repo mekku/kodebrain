@@ -4,11 +4,13 @@ type: concept
 status: active
 confidence: supported
 provenance: project_document
-knowledge_role: intent
+knowledge_role: reference
 project: kodebrain
 domain: kb-history
-source_files:
-  - docs/design/spec/history-model.md
+canonical_source:
+  path: docs/design/spec/history-model.md
+  anchor: decision-lifecycle
+source_files: []
 last_updated: "2026-08-07"
 last_reviewed: null
 tags:

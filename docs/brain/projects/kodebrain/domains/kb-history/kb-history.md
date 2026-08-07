@@ -4,7 +4,7 @@ type: domain
 status: active
 confidence: supported
 provenance: project_document
-knowledge_role: intent
+knowledge_role: mixed
 project: kodebrain
 domain: kb-history
 source_files:

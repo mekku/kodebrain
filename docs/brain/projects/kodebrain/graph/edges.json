@@ -1,5 +1,41 @@
 [
   {
+    "from": "2026-08-07-onboard-validation-canonical-projection",
+    "to": "kb-workflow",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "2026-08-07-onboard-validation-canonical-projection",
+    "to": "kb-core",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "2026-08-07-onboard-validation-canonical-projection",
+    "to": "kb-governance",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "2026-08-07-onboard-validation-canonical-projection",
+    "to": "kb-substrate",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
     "from": "kb-core-graph-compilation",
     "to": "kb-core",
     "type": "related_to",
@@ -884,6 +920,15 @@
   {
     "from": "kodebrain",
     "to": "kb-substrate",
+    "type": "related_to",
+    "confidence": "inferred",
+    "provenance": "generated",
+    "label": "",
+    "last_updated": "2026-08-07"
+  },
+  {
+    "from": "kodebrain",
+    "to": "2026-08-07-onboard-validation-canonical-projection",
     "type": "related_to",
     "confidence": "inferred",
     "provenance": "generated",

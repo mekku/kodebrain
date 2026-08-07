@@ -1,5 +1,26 @@
 [
   {
+    "id": "2026-08-07-onboard-validation-canonical-projection",
+    "type": "change",
+    "name": "2026 08 07 Onboard Validation Canonical Projection",
+    "summary": "Add a deterministic **Onboard Completion Gate** that validates generated KB output before onboarding declares success. The gate runs after compile_graph and produces a structured `validation-result.json` with severity-graded findings. Reports (drift, needs-review, knowledge-gaps) become rendered views of validation state, not independently authored prose.",
+    "project": "kodebrain",
+    "domain": "",
+    "status": "active",
+    "confidence": "supported",
+    "provenance": "human",
+    "knowledge_role": "intent",
+    "source_files": [],
+    "page_path": "kodebrain/changes/active/2026-08-07-onboard-validation-canonical-projection.md",
+    "tags": [
+      "type/change",
+      "status/active"
+    ],
+    "last_updated": "2026-08-07",
+    "last_reviewed": "",
+    "change_state": "planned"
+  },
+  {
     "id": "kb-core-graph-compilation",
     "type": "capability",
     "name": "Kb Core Graph Compilation",
@@ -245,10 +266,8 @@
     "status": "active",
     "confidence": "supported",
     "provenance": "project_document",
-    "knowledge_role": "intent",
-    "source_files": [
-      "docs/design/spec/history-model.md"
-    ],
+    "knowledge_role": "reference",
+    "source_files": [],
     "page_path": "kodebrain/domains/kb-history/concepts/kb-history-decision-lifecycle.md",
     "tags": [
       "type/concept",
@@ -268,7 +287,7 @@
     "status": "active",
     "confidence": "supported",
     "provenance": "project_document",
-    "knowledge_role": "intent",
+    "knowledge_role": "mixed",
     "source_files": [
       "docs/design/spec/history-model.md",
       "kodebrain/skill/scripts/timeline.py"
@@ -440,10 +459,8 @@
     "status": "active",
     "confidence": "supported",
     "provenance": "project_document",
-    "knowledge_role": "intent",
-    "source_files": [
-      "docs/design/spec/workflow-model.md"
-    ],
+    "knowledge_role": "reference",
+    "source_files": [],
     "page_path": "kodebrain/domains/kb-workflow/concepts/kb-workflow-change-lifecycle.md",
     "tags": [
       "type/concept",
@@ -463,10 +480,8 @@
     "status": "active",
     "confidence": "supported",
     "provenance": "project_document",
-    "knowledge_role": "intent",
-    "source_files": [
-      "docs/design/spec/workflow-model.md"
-    ],
+    "knowledge_role": "reference",
+    "source_files": [],
     "page_path": "kodebrain/domains/kb-workflow/concepts/kb-workflow-status-lifecycle-separation.md",
     "tags": [
       "type/concept",
@@ -555,8 +570,8 @@
     "project": "kodebrain",
     "domain": "",
     "status": "active",
-    "confidence": "verified",
-    "provenance": "human",
+    "confidence": "supported",
+    "provenance": "project_document",
     "knowledge_role": "intent",
     "source_files": [],
     "page_path": "kodebrain/kodebrain.md",
